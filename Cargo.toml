@@ -1,0 +1,17 @@
+[package]
+name = "nucloid_rs"
+version = "0.1.0"
+authors = ["Kévin Lesénéchal <kevin.lesenechal@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+cc = "1.0"
+
+[dependencies]
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+
+[target.'cfg(any(target_arch = "x86", target_arch = "x86_64"))'.dependencies]
+x86 = "0.37.0"
+multiboot = "0.7.0"
