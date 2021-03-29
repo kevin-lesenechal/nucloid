@@ -1,0 +1,60 @@
+#[cfg(target_arch = "x86_64")]
+pub struct TaskMachineContext {
+    pub rax: u64,
+    pub rbx: u64,
+    pub rcx: u64,
+    pub rdx: u64,
+
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
+
+    pub rdi: u64,
+    pub rsi: u64,
+
+    pub rsp: u64,
+    pub rbp: u64,
+
+    pub rip: u64,
+    pub rflags: u64,
+
+    pub cs: u16,
+    pub ss: u16,
+    pub ds: u16,
+    pub es: u16,
+    pub fs: u16,
+    pub gs: u16,
+
+    pub cr3: u64,
+}
+
+#[cfg(target_arch = "x86")]
+pub struct TaskMachineContext {
+    pub eax: u32,
+    pub ebx: u32,
+    pub ecx: u32,
+    pub edx: u32,
+
+    pub edi: u32,
+    pub esi: u32,
+
+    pub esp: u32,
+    pub ebp: u32,
+
+    pub eip: u32,
+    pub eflags: u32,
+
+    pub cs: u16,
+    pub ss: u16,
+    pub ds: u16,
+    pub es: u16,
+    pub fs: u16,
+    pub gs: u16,
+
+    pub cr3: u32,
+}

@@ -1,0 +1,25 @@
+#[target.'cfg(target_os = "linux")']
+#rustflags = ["-C", "link-arg=-nostartfiles"]
+
+[target.i686-nucloid]
+rustflags = [
+    "-C", "link-arg=-Ttargets/i686.ld",
+    "-C", "link-arg=-nostartfiles"
+]
+
+[target.x86_64-nucloid]
+rustflags = [
+    "-C", "link-arg=-Ttargets/x86_64.ld",
+    "-C", "link-arg=-nostartfiles",
+    "-C", "link-arg=-n"
+]
+
+# Building the actual kernel image requires the two settings below. We can't,
+# however, enable them here because they would prevent the tests to build since
+# they require the host's stdlib. To the best of my knowledge, it is not
+# possible to have these parameters to be conditional. So we pass them as `-Z`
+# flags to cargo (the Makefile inserts them) when making the kernel ELF, but not
+# when making the test build.
+#[unstable]
+#build-std = ["core", "compiler_builtins", "alloc"]
+#build-std-features = ["compiler-builtins-mem"]
