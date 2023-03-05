@@ -125,7 +125,3 @@ pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
 
     main(fb);
 }
-
-fn ring3_main() {
-    //
-}
