@@ -13,3 +13,5 @@ pub mod mem;
 pub mod sync;
 pub mod task;
 pub mod logging;
+
+pub use super::driver::vesa::VesaFramebuffer;

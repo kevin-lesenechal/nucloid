@@ -38,31 +38,29 @@ pub mod task;
 pub mod ui;
 mod libc;
 
-use crate::driver::screen::FramebufferScreen;
-use crate::ui::term::Terminal;
-
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 #[cfg(not(test))]
 use crate::panic::panic_at_state;
 
-fn main(fb: impl FramebufferScreen) -> ! {
-    let mut t = Terminal::create(fb);
-    t.write("impl PxFont {\n");
-    t.write("    pub fn from_data(data: &[u8]) -> Result<Self, PxFontError> {\n");
-    t.write("        let mut reader = Cursor::new(data);\n");
-    t.write("        let header = FileHeader::read(&mut reader)\n");
-    t.write("            .map_err(|e| PxFontError::InvalidHeader(e))?;\n");
-    t.write("        let glyph_size = header.width as usize * header.height as usize;\n");
-    t.write("        let mut chars = HashMap::new();\n");
-    t.write("\n");
-    t.write("Voix ambiguë d’un \x1b{fg=f00}cœur\x1b{!fg} qui, au \x1b{bg=2b2b2b}zéphyr\x1b{!bg}, préfère les jattes de \x1b{fg=0f0}kiwis\x1b{!fg}.\n");
-    t.write("В чащах юга жил бы цитрус? Да, но фальшивый экземпляр!\n");
-    t.write("Ξεσκεπάζω την ψυχοφθόρα σας βδελυγμία.\n");
-    t.write("Ça fera 1 035,00 €, ou £20.\n");
-    t.write("a\tbb\tccc\tdddd\teeeeee\teeeeeee\teeeeeeee\tf\n");
-    t.write("Hello \x1b{fg=ffc66d;bg=000000}WORLD\x1b{!fg;!bg}!\n");
-    t.write("Nucloid is powered by 🦀 \x1b{fg=f74c00}Rust\x1b{!fg}. Jordan est un 🤡.\n");
+fn main() -> ! {
+    println!("Hello, world!");
+    println!();
+    println!("impl PxFont {{");
+    println!("    pub fn from_data(data: &[u8]) -> Result<Self, PxFontError> {{");
+    println!("        let mut reader = Cursor::new(data);");
+    println!("        let header = FileHeader::read(&mut reader)");
+    println!("            .map_err(|e| PxFontError::InvalidHeader(e))?;");
+    println!("        let glyph_size = header.width as usize * header.height as usize;");
+    println!("        let mut chars = HashMap::new();");
+    println!();
+    println!("Voix ambiguë d’un \x1b<fg=f00>cœur\x1b<!fg> qui, au \x1b<bg=2b2b2b>zéphyr\x1b<!bg>, préfère les jattes de \x1b<fg=0f0>kiwis\x1b<!fg>.");
+    println!("В чащах юга жил бы цитрус? Да, но фальшивый экземпляр!");
+    println!("Ξεσκεπάζω την ψυχοφθόρα σας βδελυγμία.");
+    println!("Ça fera 1 035,00 €, ou £20.");
+    println!("a\tbb\tccc\tdddd\teeeeee\teeeeeee\teeeeeeee\tf");
+    println!("Hello \x1b<fg=ffc66d;bg=000000>WORLD\x1b<!fg;!bg>!");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>. Jordan est un 🤡.");
 
     loop {
         arch::cpu::halt();

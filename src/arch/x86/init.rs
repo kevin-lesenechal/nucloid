@@ -23,6 +23,8 @@ use crate::arch::x86::driver::vesa::VesaFramebuffer;
 use crate::arch::x86::export::logging::LOGGER_SERIAL;
 use crate::logging::DEFAULT_LOGGER;
 use crate::mem::load::{kernel_image, kernel_rodata_segment, kernel_text_segment};
+use crate::ui::kterm::KERNEL_TERMINAL;
+use crate::ui::term::Terminal;
 
 /// Welcome in Rust land! This is the very first Rust code to run on the CPU
 /// once the previous `_start` routine in assembly ran. We did the bare
@@ -122,6 +124,7 @@ pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
 
     debug!("fb ({fb_width}×{fb_height}) paddr = {:?}, vaddr = {:?}, size = {}",
            fb_addr, *fb_vaddr, fb_bsize);
+    *KERNEL_TERMINAL.lock() = Some(Terminal::create(fb));
 
-    main(fb);
+    main();
 }

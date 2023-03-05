@@ -1,3 +1,4 @@
+use core::fmt;
 use core::str::FromStr;
 
 use crate::driver::screen::{Color, FramebufferScreen};
@@ -175,6 +176,13 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     }
 }
 
+impl<Fb: FramebufferScreen> fmt::Write for Terminal<Fb> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write(s);
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub enum EscapeCommand {
     SetFgColor(Color),
@@ -230,10 +238,10 @@ impl Iterator for EscapeIterator<'_> {
         let s = self.s?;
 
         if self.off == 0 {
-            if s.len() == 0 || s.as_bytes()[0] != b'{' {
+            if s.len() == 0 || s.as_bytes()[0] != b'<' {
                 return None;
             }
-            if let Some(end_pos) = s.find('}') {
+            if let Some(end_pos) = s.find('>') {
                 self.off = end_pos + 1;
                 self.s = Some(&s[1..end_pos]);
             } else {
