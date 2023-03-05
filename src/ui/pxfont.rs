@@ -14,6 +14,7 @@ pub struct PxFont {
 
 pub struct Glyph {
     px: Vec<u8>,
+    is_emoji: bool,
 }
 
 #[derive(Error, Debug)]
@@ -35,17 +36,18 @@ pub enum PxFontError {
 }
 
 #[derive(BinRead, Debug)]
-#[brw(little, magic = b"PXFONT")]
+#[br(little, magic = b"PXFONT")]
 struct FileHeader {
     width: u8,
     height: u8,
 }
 
 #[derive(BinRead, Debug)]
-#[brw(little)]
+#[br(little)]
 struct GlyphBlock {
     start: u32,
     end: u32,
+    emojis: u8,
 }
 
 impl PxFont {
@@ -53,12 +55,16 @@ impl PxFont {
         let mut reader = Cursor::new(data);
         let header = FileHeader::read(&mut reader)
             .map_err(|e| PxFontError::InvalidHeader(e))?;
-        let glyph_size = header.width as usize * header.height as usize;
         let mut chars = HashMap::new();
 
         loop {
             let block = GlyphBlock::read(&mut reader)
                 .map_err(|e| PxFontError::InvalidGlyphBlockHeader(e))?;
+            let is_emoji = block.emojis > 0;
+            let glyph_size = match is_emoji {
+                false => header.width as usize * header.height as usize,
+                true => header.width as usize * header.width as usize * 4 * 4,
+            };
             let (start, end) = match (block.start.try_into(), block.end.try_into()) {
                 (Ok(start), Ok(end)) => (start, end),
                 _ => return Err(
@@ -73,6 +79,7 @@ impl PxFont {
                 }
                 let glyph = Glyph {
                     px: data[..glyph_size].to_vec(),
+                    is_emoji,
                 };
                 reader.seek(SeekFrom::Current(glyph_size as i64)).unwrap();
                 chars.insert(c, glyph);
@@ -119,6 +126,11 @@ impl Glyph {
     #[inline]
     pub fn rgb_data(&self) -> &[u8] {
         &self.px
+    }
+
+    #[inline]
+    pub fn is_emoji(&self) -> bool {
+        self.is_emoji
     }
 }
 

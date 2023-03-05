@@ -84,25 +84,7 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
                 return;
             },
             '\x00'..='\x1f' | '\x7f' => return,
-            c => {
-                let glyph = self.font.get_glyph(c)
-                    .unwrap_or(self.font.replacement_glyph());
-                let orig_x = self.cursor_x * self.font.glyph_width() as usize;
-                let orig_y = self.cursor_y * self.font.glyph_height() as usize;
-
-                for (i, &value) in glyph.rgb_data().into_iter().enumerate() {
-                    let x = orig_x + i % self.font.glyph_width() as usize;
-                    let y = orig_y + i / self.font.glyph_width() as usize;
-                    let fg_color = Color {
-                        r: (value as u16 * self.fg_color.r as u16 / 255) as u8,
-                        g: (value as u16 * self.fg_color.g as u16 / 255) as u8,
-                        b: (value as u16 * self.fg_color.b as u16 / 255) as u8,
-                    };
-                    let bg_color = self.bg_color_at(x, y);
-                    let color = Color::blend(fg_color, value, bg_color);
-                    self.fb.put(x, y, color);
-                }
-            }
+            c => self.render_glyph(c),
         }
 
         self.cursor_x += 1;
@@ -114,6 +96,55 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
 
     pub fn fg_color(&mut self, color: Color) {
         self.fg_color = color;
+    }
+
+    fn render_glyph(&mut self, c: char) {
+        let glyph = self.font.get_glyph(c)
+            .unwrap_or(self.font.replacement_glyph());
+        if glyph.is_emoji() {
+            return self.render_emoji(c);
+        }
+
+        let orig_x = self.cursor_x * self.font.glyph_width() as usize;
+        let orig_y = self.cursor_y * self.font.glyph_height() as usize;
+
+        for (i, &value) in glyph.rgb_data().into_iter().enumerate() {
+            let x = orig_x + i % self.font.glyph_width() as usize;
+            let y = orig_y + i / self.font.glyph_width() as usize;
+            let fg_color = Color {
+                r: (value as u16 * self.fg_color.r as u16 / 255) as u8,
+                g: (value as u16 * self.fg_color.g as u16 / 255) as u8,
+                b: (value as u16 * self.fg_color.b as u16 / 255) as u8,
+            };
+            let bg_color = self.bg_color
+                .unwrap_or_else(|| self.bg_color_at(x, y));
+            let color = Color::blend(fg_color, value, bg_color);
+            self.fb.put(x, y, color);
+        }
+    }
+
+    fn render_emoji(&mut self, c: char) {
+        let glyph = self.font.get_glyph(c)
+            .unwrap_or(self.font.replacement_glyph());
+
+        let orig_x = self.cursor_x * self.font.glyph_width() as usize;
+        let orig_y = self.cursor_y * self.font.glyph_height() as usize;
+
+        for (i, rgba) in glyph.rgb_data().chunks_exact(4).enumerate() {
+            let x = orig_x + i % (self.font.glyph_width() as usize * 2);
+            let y = orig_y + i / (self.font.glyph_width() as usize * 2) + 4;
+            let fg_color = Color {
+                r: rgba[0],
+                g: rgba[1],
+                b: rgba[2],
+            };
+            let bg_color = self.bg_color
+                .unwrap_or_else(|| self.bg_color_at(x, y));
+            let color = Color::blend(fg_color, rgba[3], bg_color);
+            self.fb.put(x, y, color);
+        }
+
+        self.cursor_x += 1; // TODO
     }
 
     fn bg_color_at(&self, x: usize, y: usize) -> Color {
@@ -162,20 +193,12 @@ impl FromStr for EscapeCommand {
 
         use EscapeCommand::*;
         Ok(match (cmd, arg) {
-            ("fg", Some(arg)) => {
-                if arg == "!" {
-                    ClearFgColor
-                } else {
-                    SetFgColor(arg.parse().map_err(|_| ())?)
-                }
-            },
-            ("bg", Some(arg)) => {
-                if arg == "!" {
-                    ClearBgColor
-                } else {
-                    SetBgColor(arg.parse().map_err(|_| ())?)
-                }
-            },
+            ("fg", Some(arg)) =>
+                SetFgColor(arg.parse().map_err(|_| ())?),
+            ("!fg", None) => ClearFgColor,
+            ("bg", Some(arg)) =>
+                SetBgColor(arg.parse().map_err(|_| ())?),
+            ("!bg", None) => ClearBgColor,
             _ => return Err(()),
         })
     }

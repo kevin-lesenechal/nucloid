@@ -10,7 +10,7 @@
 
 use core::str::FromStr;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
