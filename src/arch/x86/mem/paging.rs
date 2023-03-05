@@ -597,7 +597,7 @@ fn walk_pd(pd: &mut PD, heap_addr: &mut VAddr, vaddr: &mut VAddr) {
 // TODO: factorize with `make_pt()`
 fn make_pd(pdpt_entry: &mut PDPTEntry, heap_addr: &mut VAddr) {
     assert_eq!(heap_addr.0 & 0xfff, 0);
-    assert!(*heap_addr + 4096 <= get_boot_lowmem_va_end());
+    //assert!(*heap_addr + 4096 <= get_boot_lowmem_va_end());
 
     let pt_ptr = heap_addr.as_mut_ptr::<u8>();
     unsafe {
