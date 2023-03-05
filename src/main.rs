@@ -36,7 +36,6 @@ pub mod panic;
 pub mod misc;
 pub mod task;
 pub mod ui;
-mod libc;
 
 #[cfg(not(test))]
 use core::panic::PanicInfo;
