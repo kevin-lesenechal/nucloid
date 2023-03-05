@@ -24,8 +24,40 @@ use crate::arch::x86::export::logging::LOGGER_SERIAL;
 use crate::logging::DEFAULT_LOGGER;
 use crate::mem::load::{kernel_image, kernel_rodata_segment, kernel_text_segment};
 
+/// Welcome in Rust land! This is the very first Rust code to run on the CPU
+/// once the previous `_start` routine in assembly ran. We did the bare
+/// minimum in this routine to run Rust (mostly setting up paging) since
+/// assembly is not my preffered programming language.
+///
+/// It is time to perform the most vital initializations; the order in which to
+/// perform them is critical: we want to be able to easely debug the kernel.
+///
+/// First, we need to setup a USART so that crashes and debug information are
+/// able to be exfiltrated since a lot can go wrong before we can print anything
+/// onto the screen. This is convenient on both QEMU and real hardware.
+///
+/// Then, some basic global variables are set from the Multiboot information
+/// structure: `PHYS_MEM_SIZE` and `LOWMEM_VA_END`.
+///
+/// We then set up the kernel's GDT, since the GDT created by `_start` is not
+/// enough to run ring 3 code or 32 bits code.
+///
+/// After that, the IDT is initialized: from there, we can handle CPU exceptions
+/// and print useful crash report.
+///
+/// Then most important part: we set up the memory management, composed of:
+///     * mapping all low-memory in the virtual address space;
+///     * setting up proper page protections for read/write/execute;
+///     * creating and configuring the physical frames allocator;
+///     * (i386) constructing the high-memory allocator.
+///
+/// Interrupts can now be enabled.
+///
+/// Finally, we call the kernel's `main` function to start the architecture-
+/// agnostic code.
 #[no_mangle]
 pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
+    // We are not yet ready to handle interruptions: we don't even have an IDT!
     push_critical_region();
 
     LOGGER_SERIAL = Some(unsafe { SerialDevice::new(
