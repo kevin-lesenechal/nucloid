@@ -10,7 +10,8 @@
 
 use crate::sync::Spinlock;
 
-use core::fmt;
+use core::{fmt, mem};
+use core::ops::DerefMut;
 
 pub static DEFAULT_LOGGER: Spinlock<&'static mut (dyn Logger + Send)>
     = Spinlock::new(unsafe { &mut NULL_LOGGER });
@@ -19,6 +20,7 @@ pub trait Logger {
     fn log(&mut self, severity: Severity, args: fmt::Arguments);
 }
 
+#[derive(Copy, Clone)]
 pub enum Severity {
     Debug,
     Info,
@@ -118,4 +120,9 @@ static mut NULL_LOGGER: NullLogger = NullLogger;
 impl Logger for NullLogger {
     fn log(&mut self, _severity: Severity, _args: fmt::Arguments) {
     }
+}
+
+pub unsafe fn reset_logger() -> &'static mut (dyn Logger + Send) {
+    let mut logger = DEFAULT_LOGGER.lock();
+    mem::replace(logger.deref_mut(), unsafe { &mut NULL_LOGGER })
 }

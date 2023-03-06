@@ -45,13 +45,13 @@ use crate::panic::panic_at_state;
 fn main() -> ! {
     println!("Hello, world!");
     println!();
-    println!("impl PxFont {{");
-    println!("    pub fn from_data(data: &[u8]) -> Result<Self, PxFontError> {{");
-    println!("        let mut reader = Cursor::new(data);");
-    println!("        let header = FileHeader::read(&mut reader)");
-    println!("            .map_err(|e| PxFontError::InvalidHeader(e))?;");
-    println!("        let glyph_size = header.width as usize * header.height as usize;");
-    println!("        let mut chars = HashMap::new();");
+    println!("\x1b<fg=cc7832>impl\x1b<!fg> PxFont {{");
+    println!("    \x1b<fg=cc7832>pub fn\x1b<!fg> \x1b<fg=ffc66d>from_data\x1b<!fg>(data: &[\x1b<fg=cc7832>u8\x1b<!fg>]) -> Result<\x1b<fg=cc7832>Self,\x1b<!fg> PxFontError> {{");
+    println!("        \x1b<fg=cc7832>let mut\x1b<!fg> reader = Cursor::\x1b<fg=ffc66d>new\x1b<!fg>(data)\x1b<fg=cc7832>;\x1b<!fg>");
+    println!("        \x1b<fg=cc7832>let\x1b<!fg> header = FileHeader::\x1b<fg=ffc66d>read\x1b<!fg>(&\x1b<fg=cc7832>mut\x1b<!fg> reader)");
+    println!("            .\x1b<fg=ffc66d>map_err\x1b<!fg>(|e| PxFontError::\x1b<fg=9876aa>InvalidHeader\x1b<!fg>(e))\x1b<fg=cc7832>?;\x1b<!fg>");
+    println!("        \x1b<fg=cc7832>let\x1b<!fg> glyph_size = header.width \x1b<fg=cc7832>as\x1b<!fg> usize * header.height \x1b<fg=cc7832>as\x1b<!fg> usize\x1b<fg=cc7832>;\x1b<!fg>");
+    println!("        \x1b<fg=cc7832>let mut\x1b<!fg> chars = HashMap::\x1b<fg=ffc66d>new\x1b<!fg>()\x1b<fg=cc7832>;\x1b<!fg>");
     println!();
     println!("Voix ambiguë d’un \x1b<fg=f00>cœur\x1b<!fg> qui, au \x1b<bg=2b2b2b>zéphyr\x1b<!bg>, préfère les jattes de \x1b<fg=0f0>kiwis\x1b<!fg>.");
     println!("В чащах юга жил бы цитрус? Да, но фальшивый экземпляр!");
@@ -60,6 +60,13 @@ fn main() -> ! {
     println!("a\tbb\tccc\tdddd\teeeeee\teeeeeee\teeeeeeee\tf");
     println!("Hello \x1b<fg=ffc66d;bg=000000>WORLD\x1b<!fg;!bg>!");
     println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>. Jordan est un 🤡.");
+
+    debug!("Test debug");
+    info!("Un petite info");
+    notice!("Avez-vous vu ça ?");
+    warning!("Ceci est un warning !");
+    error!("Oops, un erreur s'est produite...");
+    critical!("Aïe ! C'est sérieux !");
 
     loop {
         arch::cpu::halt();

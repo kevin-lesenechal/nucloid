@@ -14,7 +14,7 @@ use core::str::FromStr;
 use crate::driver::screen::{Color, FramebufferScreen};
 use crate::ui::pxfont::PxFont;
 
-const DEFAULT_FG_COLOR: Color = Color { r: 255, g: 255, b: 255 };
+const DEFAULT_FG_COLOR: Color = Color { r: 169, g: 183, b: 198 };
 
 pub struct Terminal<Fb> {
     background: &'static [u8],
@@ -164,6 +164,7 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         Color { r: rgb[0], g: rgb[1], b: rgb[2] }
     }
 
+    // TODO: does not handle escape commands in multiple parts.
     fn handle_escape(&mut self, s: &str) -> usize {
         let mut it = EscapeIterator::new(s);
 

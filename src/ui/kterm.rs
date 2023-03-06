@@ -8,17 +8,52 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-use core::fmt;
-use core::fmt::Write;
+use core::fmt::{Arguments, Write};
 
 use crate::arch::VesaFramebuffer;
+use crate::logging::{Logger, Severity};
 use crate::sync::Spinlock;
 use crate::ui::term::Terminal;
 
 pub static KERNEL_TERMINAL: Spinlock<Option<Terminal<VesaFramebuffer>>>
     = Spinlock::new(None);
 
-pub fn _print(args: fmt::Arguments) {
+pub struct TerminalLogger {
+    serial: &'static mut (dyn Logger + Send),
+}
+
+impl TerminalLogger {
+    pub fn new(serial: &'static mut (dyn Logger + Send)) -> Self {
+        Self {
+            serial
+        }
+    }
+}
+
+impl Logger for TerminalLogger {
+    fn log(&mut self, severity: Severity, args: Arguments) {
+        self.serial.log(severity, args.clone());
+
+        let (color, severity_str) = match severity {
+            Severity::Debug => ("\x1b<fg=686868>", "debug"),
+            Severity::Info => ("\x1b<fg=b2b2b2>", "info"),
+            Severity::Notice => ("\x1b<fg=ffffff>", "notice"),
+            Severity::Warning => ("\x1b<fg=ffff54>", "warning"),
+            Severity::Error => ("\x1b<fg=b21818>", "error"),
+            Severity::Critical => ("\x1b<fg=ff0000>", "critic."),
+            Severity::Alert => ("\x1b<fg=ff0000>", "ALERT"),
+            Severity::Emergency => ("\x1b<fg=ff0000>", "EMERG."),
+        };
+        let mut kterm = KERNEL_TERMINAL.lock();
+        if let Some(ref mut kterm) = *kterm {
+            write!(kterm, "{}{:>7}: ", color, severity_str).unwrap();
+            kterm.write_fmt(args).unwrap();
+            write!(kterm, "\x1b<!fg>\n").unwrap();
+        }
+    }
+}
+
+pub fn _print(args: Arguments) {
     let mut kterm = KERNEL_TERMINAL.lock();
     if let Some(ref mut kterm) = *kterm {
         let _ = kterm.write_fmt(args);
