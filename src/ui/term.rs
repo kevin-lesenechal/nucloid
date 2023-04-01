@@ -380,14 +380,17 @@ impl Iterator for EscapeIterator<'_> {
             }
         }
 
-        let s = self.s?;
-
-        if let Some(pos) = s.find(';') {
-            let cmd = s[..pos].parse().ok()?;
-            self.s = Some(&s[(pos + 1)..]);
-            Some(cmd)
-        } else {
-            self.s.take().and_then(|s| s.parse().ok())
+        loop {
+            let s = self.s?;
+            if let Some(pos) = s.find(';') {
+                self.s = Some(&s[(pos + 1)..]);
+                match s[..pos].parse() {
+                    Ok(cmd) => break Some(cmd),
+                    Err(_) => continue,
+                }
+            } else {
+                break self.s.take().and_then(|s| s.parse().ok());
+            }
         }
     }
 }
