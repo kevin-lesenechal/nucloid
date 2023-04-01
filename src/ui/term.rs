@@ -8,6 +8,9 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use alloc::collections::VecDeque;
+use alloc::vec;
+use core::cell::RefCell;
 use core::fmt;
 use core::str::FromStr;
 
@@ -19,15 +22,27 @@ const DEFAULT_FG_COLOR: Color = Color { r: 169, g: 183, b: 198 };
 pub struct Terminal<Fb> {
     background: &'static [u8],
     font: PxFont,
-    fb: Fb,
+    fb: RefCell<Fb>,
     width_px: usize,
     height_px: usize,
     columns: usize,
     rows: usize,
     cursor_x: usize,
     cursor_y: usize,
+    curr_style: GlyphStyle,
+    cells: VecDeque<TermCell>,
+}
+
+#[derive(Copy, Clone)]
+struct GlyphStyle {
     fg_color: Color,
     bg_color: Option<Color>,
+}
+
+#[derive(Copy, Clone)]
+struct TermCell {
+    c: char,
+    style: GlyphStyle,
 }
 
 impl<Fb: FramebufferScreen> Terminal<Fb> {
@@ -44,15 +59,15 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
                 concat!(env!("CARGO_MANIFEST_DIR"), "/media/wallpaper.data")
             ),
             font,
-            fb,
+            fb: RefCell::new(fb),
             width_px,
             height_px,
             columns,
             rows,
             cursor_x: 0,
             cursor_y: 0,
-            fg_color: DEFAULT_FG_COLOR,
-            bg_color: None,
+            curr_style: Default::default(),
+            cells: VecDeque::new(),
         };
         term.clear();
 
@@ -60,16 +75,20 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     }
 
     pub fn clear(&mut self) {
-        for y in 0..self.fb.dimensions().1 {
-            for x in 0..self.fb.dimensions().0 {
+        let mut fb = self.fb.borrow_mut();
+
+        for y in 0..fb.dimensions().1 {
+            for x in 0..fb.dimensions().0 {
                 let rgb = &self.background[((y * 1920 + x) * 3)..];
-                self.fb.put(x, y, Color { r: rgb[0], g: rgb[1], b: rgb[2] });
+                fb.put(x, y, Color { r: rgb[0], g: rgb[1], b: rgb[2] });
             }
         }
+
+        self.cells = vec![Default::default(); self.rows * self.columns].into();
     }
 
     pub fn write(&mut self, s: &str) {
-        let mut it = s.char_indices();//s.chars().enumerate();
+        let mut it = s.char_indices();
 
         while let Some((i, c)) = it.next() {
             if c == '\x1b' {
@@ -82,64 +101,126 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     pub fn putc(&mut self, c: char) {
         match c {
             '\n' => {
-                self.cursor_y += 1;
                 self.cursor_x = 0;
-                return;
+                self.advance_y();
             },
-            '\t' => {
-                self.cursor_x = (self.cursor_x & !0b111) + 7;
-            },
-            ' ' | '\u{a0}' | '\u{202f}' => (),
-            '\r' => {
-                self.cursor_x = 0;
-                return;
-            },
+            '\t' => self.advance_x(8 - (self.cursor_x & 0b111)),
+            //' ' | '\u{a0}' | '\u{202f}' => self.advance_x(1),
+            '\r' => self.cursor_x = 0,
             '\x00'..='\x1f' | '\x7f' => return,
-            c => self.render_glyph(c),
+            c => {
+                let glyph_size = self.glyph_size(c);
+                if self.cursor_x + glyph_size >= self.columns {
+                    self.cursor_x = 0;
+                    self.advance_y();
+                }
+                self.render_glyph(
+                    c,
+                    self.cursor_x,
+                    self.cursor_y,
+                    self.curr_style,
+                );
+                *self.cell_at(self.cursor_x, self.cursor_y) = TermCell {
+                    c,
+                    style: self.curr_style,
+                };
+                for i in (self.cursor_x + 1)..(self.cursor_x + glyph_size) {
+                    *self.cell_at(i, self.cursor_y) = TermCell {
+                        c: '\0',
+                        style: self.curr_style,
+                    };
+                }
+                self.advance_x(glyph_size);
+            },
+        }
+    }
+
+    pub fn scroll_up(&mut self, mut nr_lines: usize) {
+        if nr_lines > self.rows {
+            nr_lines = self.rows;
         }
 
-        self.cursor_x += 1;
+        for _ in 0..(nr_lines * self.columns) {
+            self.cells.pop_front();
+        }
+        for _ in 0..(nr_lines * self.columns) {
+            self.cells.push_back(TermCell::default());
+        }
+
+        self.rerender();
+
+        self.cursor_y = self.cursor_y.saturating_sub(nr_lines);
+    }
+
+    fn advance_x(&mut self, by: usize) {
+        self.cursor_x += by;
         if self.cursor_x >= self.columns {
             self.cursor_x = 0;
-            self.cursor_y += 1;
+            self.advance_y();
         }
     }
 
-    pub fn fg_color(&mut self, color: Color) {
-        self.fg_color = color;
+    fn advance_y(&mut self) {
+        if self.cursor_y == self.rows - 1 {
+            self.scroll_up(1);
+        }
+
+        self.cursor_y += 1;
     }
 
-    fn render_glyph(&mut self, c: char) {
+    fn glyph_size(&self, c: char) -> usize {
+        self.font.get_glyph(c)
+            .unwrap_or(self.font.replacement_glyph())
+            .nr_columns()
+    }
+
+    fn render_glyph(
+        &self,
+        c: char,
+        x: usize,
+        y: usize,
+        style: GlyphStyle,
+    ) {
         let glyph = self.font.get_glyph(c)
             .unwrap_or(self.font.replacement_glyph());
         if glyph.is_emoji() {
-            return self.render_emoji(c);
+            return self.render_emoji(c, x, y, style);
         }
 
-        let orig_x = self.cursor_x * self.font.glyph_width() as usize;
-        let orig_y = self.cursor_y * self.font.glyph_height() as usize;
+        let orig_x = x * self.font.glyph_width() as usize;
+        let orig_y = y * self.font.glyph_height() as usize;
+
+        let mut fb = self.fb.borrow_mut();
 
         for (i, &value) in glyph.rgb_data().into_iter().enumerate() {
             let x = orig_x + i % self.font.glyph_width() as usize;
             let y = orig_y + i / self.font.glyph_width() as usize;
             let fg_color = Color {
-                r: (value as u16 * self.fg_color.r as u16 / 255) as u8,
-                g: (value as u16 * self.fg_color.g as u16 / 255) as u8,
-                b: (value as u16 * self.fg_color.b as u16 / 255) as u8,
+                r: (value as u16 * style.fg_color.r as u16 / 255) as u8,
+                g: (value as u16 * style.fg_color.g as u16 / 255) as u8,
+                b: (value as u16 * style.fg_color.b as u16 / 255) as u8,
             };
-            let bg_color = self.bg_color
+            let bg_color = style.bg_color
                 .unwrap_or_else(|| self.bg_color_at(x, y));
             let color = Color::blend(fg_color, value, bg_color);
-            self.fb.put(x, y, color);
+            fb.put(x, y, color);
         }
     }
 
-    fn render_emoji(&mut self, c: char) {
+    fn render_emoji(
+        &self,
+        c: char,
+        x: usize,
+        y: usize,
+        style: GlyphStyle,
+    ) {
         let glyph = self.font.get_glyph(c)
             .unwrap_or(self.font.replacement_glyph());
 
-        let orig_x = self.cursor_x * self.font.glyph_width() as usize;
-        let orig_y = self.cursor_y * self.font.glyph_height() as usize;
+        let orig_x = x * self.font.glyph_width() as usize;
+        let orig_y = y * self.font.glyph_height() as usize;
+
+        let mut fb = self.fb.borrow_mut();
 
         for (i, rgba) in glyph.rgb_data().chunks_exact(4).enumerate() {
             let x = orig_x + i % (self.font.glyph_width() as usize * 2);
@@ -149,19 +230,32 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
                 g: rgba[1],
                 b: rgba[2],
             };
-            let bg_color = self.bg_color
+            let bg_color = style.bg_color
                 .unwrap_or_else(|| self.bg_color_at(x, y));
             let color = Color::blend(fg_color, rgba[3], bg_color);
-            self.fb.put(x, y, color);
+            fb.put(x, y, color);
         }
-
-        self.cursor_x += 1; // TODO
     }
 
     fn bg_color_at(&self, x: usize, y: usize) -> Color {
         let rgb = &self.background[((y * 1920 + x) * 3)..];
 
         Color { r: rgb[0], g: rgb[1], b: rgb[2] }
+    }
+
+    fn rerender(&mut self) {
+        for (i, cell) in self.cells.iter().enumerate() {
+            let y = i / self.columns;
+            let x = i % self.columns;
+
+            if cell.c != '\0' {
+                self.render_glyph(cell.c, x, y, cell.style);
+            }
+        }
+    }
+
+    fn cell_at(&mut self, x: usize, y: usize) -> &mut TermCell {
+        &mut self.cells[y * self.columns + x]
     }
 
     // TODO: does not handle escape commands in multiple parts.
@@ -179,10 +273,16 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         use EscapeCommand::*;
 
         match cmd {
-            SetFgColor(c) => self.fg_color = c,
-            ClearFgColor => self.fg_color = DEFAULT_FG_COLOR,
-            SetBgColor(c) => self.bg_color = Some(c),
-            ClearBgColor => self.bg_color = None,
+            SetFgColor(c) => self.curr_style.fg_color = c,
+            ClearFgColor => self.curr_style.fg_color = DEFAULT_FG_COLOR,
+            SetBgColor(c) => self.curr_style.bg_color = Some(c),
+            ClearBgColor => self.curr_style.bg_color = None,
+            Newline => {
+                if self.cursor_x > 0 {
+                    self.cursor_x = 0;
+                    self.advance_y();
+                }
+            }
         }
     }
 }
@@ -194,12 +294,31 @@ impl<Fb: FramebufferScreen> fmt::Write for Terminal<Fb> {
     }
 }
 
+impl Default for TermCell {
+    fn default() -> Self {
+        Self {
+            c: ' ',
+            style: Default::default(),
+        }
+    }
+}
+
+impl Default for GlyphStyle {
+    fn default() -> Self {
+        Self {
+            fg_color: DEFAULT_FG_COLOR,
+            bg_color: None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum EscapeCommand {
     SetFgColor(Color),
     ClearFgColor,
     SetBgColor(Color),
     ClearBgColor,
+    Newline,
 }
 
 impl FromStr for EscapeCommand {
@@ -218,6 +337,7 @@ impl FromStr for EscapeCommand {
             ("bg", Some(arg)) =>
                 SetBgColor(arg.parse().map_err(|_| ())?),
             ("!bg", None) => ClearBgColor,
+            ("nl", None) => Newline,
             _ => return Err(()),
         })
     }

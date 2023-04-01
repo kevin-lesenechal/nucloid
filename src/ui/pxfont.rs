@@ -142,6 +142,11 @@ impl Glyph {
     pub fn is_emoji(&self) -> bool {
         self.is_emoji
     }
+
+    #[inline]
+    pub fn nr_columns(&self) -> usize {
+        if self.is_emoji { 2 } else { 1 }
+    }
 }
 
 fn remaining<'a>(cursor: &Cursor<&'a [u8]>) -> &'a [u8] {
