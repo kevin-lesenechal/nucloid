@@ -7,7 +7,13 @@ fn main() {
         _ => (),
     }
 
-    //println!("cargo:rustc-link-lib=coucou");
+    println!("cargo:rerun-if-changed=src/arch/x86/multiboot2.S");
+    println!("cargo:rerun-if-changed=src/arch/x86/start32.S");
+    println!("cargo:rerun-if-changed=src/arch/x86/start64.S");
+    println!("cargo:rerun-if-changed=src/arch/x86/isr_entry32.S");
+    println!("cargo:rerun-if-changed=src/arch/x86/isr_entry64.S");
+    println!("cargo:rerun-if-changed=targets/i686.ld");
+    println!("cargo:rerun-if-changed=targets/x86_64.ld");
 }
 
 fn build_x86(target: &str) {
