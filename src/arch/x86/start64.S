@@ -48,12 +48,16 @@
 .section .text
 
     .global _start
+    .type _start, @function
 _start:
+.cfi_startproc
+.cfi_undefined 16 # There is no return address.
     // Multiboot specification says EFLAGS.DF is undefined, let's clear it.
     cld
 
     // Setup a temporary 32 Kio stack for the boot process.
     mov     $(boot_stack_top - VA_BASE), %esp
+    xor     %ebp, %ebp
     movl    $0xdeadbeef, (boot_stack_bottom_guard - VA_BASE)
 
     // Immediately save the Multiboot info pointer passed by the bootloader as
@@ -182,13 +186,12 @@ _start:
     mov     $VA_BASE, %rax
     add     %rax, %rsp
 
-    // Unmap PDPT0, no longer needed
-    //movq    $0, boot_pml4
-
     pop     %rdi // Multiboot pointer argument
     and     $(~0b111), %rsp // Align stack to 8 bytes
 
     jmp     arch_init
+.cfi_endproc
+.size _start, .-_start
 
 .code32
 

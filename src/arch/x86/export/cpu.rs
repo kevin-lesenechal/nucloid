@@ -8,10 +8,11 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use core::arch::asm;
 use core::fmt;
 
 use crate::driver::vga::VgaScreen;
-use core::fmt::{Formatter, Display};
+use crate::println;
 
 #[cfg(target_arch = "x86")]
 pub struct MachineState {
@@ -72,6 +73,69 @@ pub struct MachineState {
 
 #[cfg(target_arch = "x86_64")]
 impl MachineState {
+    #[inline(always)]
+    pub fn here() -> Self {
+        let rip;
+        let rsp;
+        let rbp;
+        let cs;
+        let ss;
+        let ds;
+        let es;
+        let fs;
+        let gs;
+
+        unsafe {
+            asm!(
+                "lea    {}, [rip - 7]",
+                "mov    {}, rsp",
+                "mov    {}, rbp",
+                "mov    {:x}, cs",
+                "mov    {:x}, ss",
+                "mov    {:x}, ds",
+                "mov    {:x}, es",
+                "mov    {:x}, fs",
+                "mov    {:x}, gs",
+                out(reg) rip,
+                out(reg) rsp,
+                out(reg) rbp,
+                out(reg) cs,
+                out(reg) ss,
+                out(reg) ds,
+                out(reg) es,
+                out(reg) fs,
+                out(reg) gs,
+            );
+        }
+
+        Self {
+            rax: 0,
+            rbx: 0,
+            rcx: 0,
+            rdx: 0,
+            r8: 0,
+            r9: 0,
+            r10: 0,
+            r11: 0,
+            r12: 0,
+            r13: 0,
+            r14: 0,
+            r15: 0,
+            rdi: 0,
+            rsi: 0,
+            rip,
+            rsp,
+            rbp,
+            rflags: 0,
+            cs,
+            ss,
+            ds,
+            es,
+            fs,
+            gs,
+        }
+    }
+
     pub fn print(&self, vga: &mut impl VgaScreen) -> fmt::Result {
         writeln!(vga, "rax{:016x} rbx{:016x} rcx{:016x} rdx{:016x}",
                  self.rax, self.rbx, self.rcx, self.rdx)?;
@@ -83,6 +147,21 @@ impl MachineState {
                  self.r12, self.r13, self.r14, self.r15)?;
         writeln!(vga, "rip={:016x}   cs={:04x}   ss={:04x}   ds={:04x}   es={:04x}   fs={:04x}   gs={:04x}",
                  self.rip, self.cs, self.ss, self.ds, self.es, self.fs, self.gs)
+    }
+
+    pub fn print_term(&self) {
+        use crate::screen::R;
+
+        println!("\x1b<fg=fff>rax=\x1b<!fg>{:x}   \x1b<fg=fff>rbx=\x1b<!fg>{:x}   \x1b<fg=fff>rcx=\x1b<!fg>{:x}   \x1b<fg=fff>rdx=\x1b<!fg>{:x}",
+                 R(self.rax), R(self.rbx), R(self.rcx), R(self.rdx));
+        println!("\x1b<fg=fff>rdi=\x1b<!fg>{:x}   \x1b<fg=fff>rsi=\x1b<!fg>{:x}   \x1b<fg=fff>rbp=\x1b<!fg>{:x}   \x1b<fg=fff>rsp=\x1b<!fg>{:x}",
+                 R(self.rdi), R(self.rsi), R(self.rbp), R(self.rsp));
+        println!(" \x1b<fg=fff>r8=\x1b<!fg>{:x}    \x1b<fg=fff>r9=\x1b<!fg>{:x}   \x1b<fg=fff>r10=\x1b<!fg>{:x}   \x1b<fg=fff>r11=\x1b<!fg>{:x}",
+                 R(self.r8), R(self.r9), R(self.r10), R(self.r11));
+        println!("\x1b<fg=fff>r12=\x1b<!fg>{:x}   \x1b<fg=fff>r13=\x1b<!fg>{:x}   \x1b<fg=fff>r14=\x1b<!fg>{:x}   \x1b<fg=fff>r15=\x1b<!fg>{:x}",
+                 R(self.r12), R(self.r13), R(self.r14), R(self.r15));
+        println!("\x1b<fg=fff>rip=\x1b<!fg>{:016x}         \x1b<fg=fff>cs=\x1b<!fg>{:04x}   \x1b<fg=fff>ss=\x1b<!fg>{:04x}   \x1b<fg=fff>ds=\x1b<!fg>{:04x}   \x1b<fg=fff>es=\x1b<!fg>{:04x}   \x1b<fg=fff>fs=\x1b<!fg>{:04x}   \x1b<fg=fff>gs=\x1b<!fg>{:04x}",
+                 R(self.rip), self.cs, self.ss, self.ds, self.es, self.fs, self.gs);
     }
 }
 

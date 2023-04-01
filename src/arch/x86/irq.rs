@@ -289,13 +289,15 @@ unsafe fn handle_exception(vec_i: usize,
         panic_at_state(
             format_args!("Exception ({}; errc={}) {} {}",
                          vec_i, errc, ex.mnemonic, ex.description),
-            Some(machine_state)
+            Some(machine_state),
+            0,
         );
     } else {
         panic_at_state(
             format_args!("Exception ({}) {} {}",
                          vec_i, ex.mnemonic, ex.description),
-            Some(machine_state)
+            Some(machine_state),
+            0,
         );
     }
 }

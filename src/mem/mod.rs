@@ -145,6 +145,7 @@ pub fn handle_pagefault(fault_addr: VAddr,
     panic_at_state(
         format_args!("{} at {:?}: {}",
                      op_str, fault_addr, reason),
-        Some(machine_state)
+        Some(machine_state),
+        0,
     );
 }

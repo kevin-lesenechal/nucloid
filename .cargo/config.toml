@@ -4,14 +4,16 @@
 [target.i686-nucloid]
 rustflags = [
     "-C", "link-arg=-Ttargets/i686.ld",
-    "-C", "link-arg=-nostartfiles"
+    "-C", "link-arg=-nostartfiles",
+    "-C", "force-unwind-tables=yes"
 ]
 
 [target.x86_64-nucloid]
 rustflags = [
     "-C", "link-arg=-Ttargets/x86_64.ld",
     "-C", "link-arg=-nostartfiles",
-    "-C", "link-arg=-n"
+    "-C", "link-arg=-n",
+    "-C", "force-unwind-tables=yes"
 ]
 
 # Building the actual kernel image requires the two settings below. We can't,

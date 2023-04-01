@@ -36,11 +36,7 @@ pub mod panic;
 pub mod misc;
 pub mod task;
 pub mod ui;
-
-#[cfg(not(test))]
-use core::panic::PanicInfo;
-#[cfg(not(test))]
-use crate::panic::panic_at_state;
+mod backtrace;
 
 fn main() -> ! {
     println!("Hello, world!");
@@ -70,21 +66,5 @@ fn main() -> ! {
 
     loop {
         arch::cpu::halt();
-    }
-}
-
-#[cfg(not(test))]
-#[panic_handler]
-fn panic_handler(panic_info: &PanicInfo) -> ! {
-    if let Some(msg) = panic_info.message() {
-        panic_at_state(
-            format_args!("Rust: {} ({})", msg, panic_info.location().unwrap()),
-            None
-        );
-    } else {
-        panic_at_state(
-            format_args!("Rust panic with no message"),
-            None
-        );
     }
 }

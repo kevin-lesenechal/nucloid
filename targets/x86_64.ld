@@ -30,6 +30,21 @@ SECTIONS {
         *(.rodata .rodata.*)
     }
     . = ALIGN(4K);
+
+    __kernel_eh_frame = .;
+    .eh_frame ALIGN(4K) : AT(ADDR(.eh_frame) - VA_BASE) {
+        KEEP(*(.eh_frame .eh_frame.*))
+    }
+    . = ALIGN(4K);
+    __kernel_eh_frame_end = .;
+
+    __kernel_eh_frame_hdr = .;
+    .eh_frame_hdr ALIGN(4K) : AT(ADDR(.eh_frame_hdr) - VA_BASE) {
+        *(.eh_frame_hdr .eh_frame_hdr.*)
+    }
+    . = ALIGN(4K);
+    __kernel_eh_frame_hdr_end = .;
+
     __kernel_rodata_end = .;
 
     __kernel_data_start = .;
