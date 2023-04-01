@@ -8,19 +8,20 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-use crate::arch::x86::driver::pic8259::Pic8259;
-use crate::arch::x86::gdt::KERNEL_CODE_SELECTOR;
-use crate::println;
-
 use x86::segmentation::{DescriptorBuilder, GateDescriptorBuilder,
                         BuildDescriptor};
 use x86::dtables::{lidt, DescriptorTablePointer};
 use x86::Ring::Ring0;
 use x86::irq::InterruptDescription;
+
 use crate::arch::cpu::MachineState;
 use crate::panic::panic_at_state;
 use crate::arch::sync::{push_critical_region, pop_critical_region};
 use crate::mem::{handle_pagefault, AccessAttempt, VAddr};
+use crate::arch::x86::driver::pic8259::Pic8259;
+use crate::arch::x86::driver::ps2;
+use crate::arch::x86::gdt::KERNEL_CODE_SELECTOR;
+use crate::println;
 
 #[cfg(target_arch = "x86_64")]
 #[repr(C, packed)]
@@ -184,7 +185,7 @@ type DescriptorType = x86::segmentation::Descriptor;
 
 static mut IDT: [DescriptorType; 64] = [DescriptorType::NULL; 64];
 
-unsafe fn get_pic() -> &'static mut Pic8259 {
+pub unsafe fn get_pic() -> &'static mut Pic8259 {
     PIC8259.as_mut().unwrap()
 }
 
@@ -313,7 +314,8 @@ unsafe extern "C" fn isr_irq(irq: usize) {
     push_critical_region();
 
     if irq == 0 {
-        //print!(".");
+    } else if irq == 1 {
+        ps2::on_irq();
     } else {
         println!("IRQ={}", irq);
     }

@@ -18,11 +18,13 @@ use crate::mem::{PAddr, PHYS_MEM_SIZE, LOWMEM_VA_END};
 use crate::arch::sync::{push_critical_region, pop_critical_region};
 use crate::arch::mem::LOWMEM_VA_START;
 use crate::arch;
+use crate::arch::x86::driver::ps2;
 
 use crate::screen::R;
 use crate::arch::x86::mem::{lowmem_va_size, physical_memory_size};
 use crate::arch::x86::driver::vesa::VesaFramebuffer;
 use crate::arch::x86::export::logging::LOGGER_SERIAL;
+use crate::driver::keyboard;
 use crate::logging::{DEFAULT_LOGGER, reset_logger};
 use crate::mem::load::{kernel_image, kernel_rodata_segment, kernel_text_segment};
 use crate::ui::kterm::{KERNEL_TERMINAL, TerminalLogger};
@@ -129,6 +131,9 @@ pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
     *KERNEL_TERMINAL.lock() = Some(Terminal::create(fb));
     let term_logger = Box::leak(Box::new(TerminalLogger::new(reset_logger())));
     *DEFAULT_LOGGER.lock() = term_logger;
+
+    keyboard::init();
+    ps2::init();
 
     main();
 }

@@ -11,3 +11,4 @@
 pub mod gpio;
 pub mod vga;
 pub mod screen;
+pub mod keyboard;

@@ -10,6 +10,8 @@
 
 use core::arch::asm;
 use core::fmt;
+use core::fmt::{Formatter, Display};
+use crate::arch::x86::driver::ps2;
 
 use crate::driver::vga::VgaScreen;
 use crate::println;
@@ -221,4 +223,8 @@ pub fn perm_halt() -> ! {
     loop {
         halt();
     }
+}
+
+pub fn reset() -> ! {
+    ps2::hard_reset();
 }

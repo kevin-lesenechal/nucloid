@@ -13,3 +13,4 @@ pub mod pic8259;
 pub mod apic;
 pub mod vesa;
 pub mod serial;
+pub mod ps2;

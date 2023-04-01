@@ -52,11 +52,13 @@ pub enum StopBits {
 }
 
 impl SerialDevice {
-    pub unsafe fn new(ioport_base: u16,
-                      baud_rate: u32,
-                      parity: ParityMode,
-                      bits: u8,
-                      stop_bits: StopBits) -> Result<Self, &'static str> {
+    pub unsafe fn new(
+        ioport_base: u16,
+        baud_rate: u32,
+        parity: ParityMode,
+        bits: u8,
+        stop_bits: StopBits,
+    ) -> Result<Self, &'static str> {
         let mut dev = Self {
             ioport_base,
             baud_rate,
