@@ -8,6 +8,7 @@
  * any later version. See LICENSE file for more information.                  *
  **************************************************************************** */
 
+# Size of all registers = 120 o
 .macro PUSH_REGS
     push  %r15
     push  %r14
@@ -21,7 +22,6 @@
     push  %rcx
     push  %rdx
     push  %rbx
-    push  %rsp
     push  %rbp
     push  %rsi
     push  %rdi
@@ -31,7 +31,6 @@
     pop   %rdi
     pop   %rsi
     pop   %rbp
-    pop   %rsp
     pop   %rbx
     pop   %rdx
     pop   %rcx
@@ -52,7 +51,7 @@
         PUSH_REGS
         mov   $\vec_n, %rdi
         mov   $0, %rsi
-        lea   128(%rsp), %rdx
+        lea   120(%rsp), %rdx
         mov   %rsp, %rcx
         call  isr_exception
         POP_REGS
@@ -64,8 +63,8 @@
     isr_entry_exception_\vec_n:
         PUSH_REGS
         mov   $\vec_n, %rdi
-        mov   128(%rsp), %rsi
-        lea   136(%rsp), %rdx
+        mov   120(%rsp), %rsi
+        lea   128(%rsp), %rdx
         mov   %rsp, %rcx
         call  isr_exception
         POP_REGS

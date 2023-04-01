@@ -46,7 +46,6 @@ struct GPRegisters {
     rdi:    u64,
     rsi:    u64,
     rbp:    u64,
-    rsp:    u64,
     rbx:    u64,
     rdx:    u64,
     rcx:    u64,
@@ -220,14 +219,17 @@ pub unsafe fn setup() {
 
 #[cfg(target_arch = "x86_64")]
 #[no_mangle]
-unsafe extern "C" fn isr_exception(vec_i: usize, errc: usize,
-                                   isr_regs: &IsrRegisters,
-                                   regs: &GPRegisters) {
+unsafe extern "C" fn isr_exception(
+    vec_i: usize,
+    errc: usize,
+    isr_regs: &IsrRegisters,
+    regs: &GPRegisters,
+) {
     let machine_state = MachineState {
         rax: regs.rax, rbx: regs.rbx, rcx: regs.rcx, rdx: regs.rdx,
         r8: regs.r8, r9: regs.r9, r10: regs.r10, r11: regs.r11,
         r12: regs.r12, r13: regs.r13, r14: regs.r14, r15: regs.r15,
-        rdi: regs.rdi, rsi: regs.rsi, rsp: regs.rsp, rbp: regs.rbp,
+        rdi: regs.rdi, rsi: regs.rsi, rsp: isr_regs.rsp, rbp: regs.rbp,
         rip: isr_regs.rip, rflags: isr_regs.rflags,
         cs: isr_regs.cs as u16, ss: isr_regs.ss as u16,
         ds: 0, es: 0, fs: 0, gs: 0, // TODO: seg regs
@@ -238,10 +240,12 @@ unsafe extern "C" fn isr_exception(vec_i: usize, errc: usize,
 
 #[cfg(target_arch = "x86")]
 #[no_mangle]
-unsafe extern "C" fn isr_exception(vec_i: usize,
-                                   regs: GPRegisters,
-                                   errc: usize,
-                                   isr_regs: IsrRegisters) {
+unsafe extern "C" fn isr_exception(
+    vec_i: usize,
+    regs: GPRegisters,
+    errc: usize,
+    isr_regs: IsrRegisters,
+) {
     let machine_state = MachineState {
         eax: regs.eax, ebx: regs.ebx, ecx: regs.ecx, edx: regs.edx,
         edi: regs.edi, esi: regs.esi, esp: regs.esp, ebp: regs.ebp,
@@ -252,9 +256,11 @@ unsafe extern "C" fn isr_exception(vec_i: usize,
     handle_exception(vec_i, Some(errc), &machine_state);
 }
 
-unsafe fn handle_exception(vec_i: usize,
-                           errc: Option<usize>,
-                           machine_state: &MachineState) {
+unsafe fn handle_exception(
+    vec_i: usize,
+    errc: Option<usize>,
+    machine_state: &MachineState,
+) {
     push_critical_region();
 
     let ex = x86::irq::EXCEPTIONS.get(vec_i as usize)
