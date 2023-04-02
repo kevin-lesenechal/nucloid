@@ -71,6 +71,7 @@ pub enum Key {
     KeypadNumLock,
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum Deadkey {
     GraveAccent,
     AcuteAccent,
@@ -79,6 +80,7 @@ pub enum Deadkey {
     Macron,
     Breve,
     Diaeresis,
+    Ring,
     Caron,
 }
 
@@ -181,6 +183,20 @@ impl Deadkey {
             _ => return None,
         })
     }
+
+    pub fn as_standalone(&self) -> Option<char> {
+        Some(match self {
+            Deadkey::GraveAccent => '`',
+            Deadkey::AcuteAccent => '´',
+            Deadkey::Circumflex => '^',
+            Deadkey::Tilde => '~',
+            Deadkey::Macron => '¯',
+            Deadkey::Breve => '˘',
+            Deadkey::Diaeresis => '¨',
+            Deadkey::Ring => '°',
+            Deadkey::Caron => 'ˇ',
+        })
+    }
 }
 
 impl TryFrom<char> for Deadkey {
@@ -195,6 +211,7 @@ impl TryFrom<char> for Deadkey {
             '\u{0304}' => Deadkey::Macron,
             '\u{0306}' => Deadkey::Breve,
             '\u{0308}' => Deadkey::Diaeresis,
+            '\u{030a}' => Deadkey::Ring,
             '\u{030c}' => Deadkey::Caron,
             _ => return Err(()),
         })

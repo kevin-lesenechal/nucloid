@@ -36,9 +36,20 @@ impl KeymapState {
     ) -> Option<char> {
         let c = self.keymap.glyph(key, altgr, capslock, shift)?;
 
-        if let Some(deadkey) = c.try_into().ok() {
-            self.deadkey = Some(deadkey);
-            None
+        if let Some(deadkey) = <char as TryInto<Deadkey>>::try_into(c).ok() {
+            if let Some(ref curr_deadkey) = self.deadkey {
+                let c = if *curr_deadkey == deadkey {
+                    deadkey.as_standalone()
+                } else {
+                    None
+                };
+
+                self.deadkey = None;
+                c
+            } else {
+                self.deadkey = Some(deadkey);
+                None
+            }
         } else {
             if let Some(ref deadkey) = self.deadkey {
                 let c = deadkey.apply(c);
