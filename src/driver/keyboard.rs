@@ -1,5 +1,8 @@
+use core::str::FromStr;
+
 use crate::{arch, print, println, warning};
 use crate::sync::Spinlock;
+use crate::ui::keymap::Keymap;
 use crate::ui::kterm::KERNEL_TERMINAL;
 
 #[derive(Debug)]
@@ -9,7 +12,7 @@ pub enum KeyEvent {
     Released(Key),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub enum Key {
     LeftShift,
     RightShift,
@@ -25,6 +28,15 @@ pub enum Key {
     Digit(u8),
     Dash,
     Equal,
+    Backslash,
+    LeftBracket,
+    RightBracket,
+    Semicolon,
+    SingleQuote,
+    Comma,
+    Period,
+    Slash,
+    Iso,
 
     Letter(char),
 
@@ -59,9 +71,56 @@ pub enum Key {
     KeypadNumLock,
 }
 
+impl FromStr for Key {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(if s.len() == 1 {
+            let c = s.chars().nth(0).unwrap();
+            match c {
+                '`' => Key::Backquote,
+                '0'..='9' => Key::Digit(c as u8 - 0x30),
+                '-' => Key::Dash,
+                '=' => Key::Equal,
+                '[' => Key::LeftBracket,
+                ']' => Key::RightBracket,
+                ';' => Key::Semicolon,
+                '\'' => Key::SingleQuote,
+                ',' => Key::Comma,
+                '.' => Key::Period,
+                '/' => Key::Slash,
+                '\\' => Key::Backslash,
+                'A'..='Z' => Key::Letter(c),
+                _ => return Err(()),            }
+        } else {
+            match s {
+                "iso" => Key::Iso,
+                "KP0" => Key::KeypadDigit(0),
+                "KP1" => Key::KeypadDigit(1),
+                "KP2" => Key::KeypadDigit(2),
+                "KP3" => Key::KeypadDigit(3),
+                "KP4" => Key::KeypadDigit(4),
+                "KP5" => Key::KeypadDigit(5),
+                "KP6" => Key::KeypadDigit(6),
+                "KP7" => Key::KeypadDigit(7),
+                "KP8" => Key::KeypadDigit(8),
+                "KP9" => Key::KeypadDigit(9),
+                "KP." => Key::KeypadPeriod,
+                "KP+" => Key::KeypadPlus,
+                "KP-" => Key::KeypadMinus,
+                "KP*" => Key::KeypadMul,
+                "KP/" => Key::KeypadDiv,
+                _ => return Err(()),
+            }
+        })
+    }
+}
+
 static KEYBOARD: Spinlock<Option<Keyboard>> = Spinlock::new(None);
 
 struct Keyboard {
+    keymap: Keymap,
+
     lctrl: bool,
     rctrl: bool,
     lshift: bool,
@@ -70,6 +129,7 @@ struct Keyboard {
     altgr: bool,
     lmeta: bool,
     rmeta: bool,
+    capslock: bool,
 }
 
 impl Keyboard {
@@ -83,6 +143,10 @@ impl Keyboard {
             altgr: false,
             lmeta: false,
             rmeta: false,
+            capslock: false,
+            keymap: Keymap::from_file(include_bytes!(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/media/fr.keymap")
+            )).unwrap(),
         }
     }
 
@@ -102,21 +166,7 @@ impl Keyboard {
         match event {
             KeyEvent::Pressed(key) =>
                 match key {
-                    Key::Letter(l) => {
-                        if self.has_ctrl() {
-                            match l {
-                                'L' => KERNEL_TERMINAL.lock().as_mut().unwrap().clear(),
-                                _ => (),
-                            }
-                        } else {
-                            print!("{}", if self.has_shift() { l } else { l.to_ascii_lowercase() })
-                        }
-                    },
-                    Key::Digit(n) | Key::KeypadDigit(n) => print!("{}", (0x30 + n) as char),
                     Key::Space => print!(" "),
-                    Key::Backquote => print!("`"),
-                    Key::Dash => print!("-"),
-                    Key::Equal => print!("="),
                     Key::Enter | Key::KeypadEnter => println!(),
                     Key::ScrollLock => arch::cpu::reset(),
 
@@ -128,7 +178,27 @@ impl Keyboard {
                     Key::AltGr => self.altgr = true,
                     Key::LeftMeta => self.lmeta = true,
                     Key::RightMeta => self.rmeta = true,
-                    _ => (),
+                    Key::CapsLock => self.capslock = !self.capslock, // TODO: LED
+
+                    _ => {
+                        if self.has_ctrl() {
+                            match key {
+                                Key::Letter('L') => KERNEL_TERMINAL.lock().as_mut().unwrap().clear(),
+                                _ => (),
+                            }
+                            return;
+                        }
+
+                        let c = self.keymap.glyph(
+                            key,
+                            self.altgr,
+                            self.capslock,
+                            self.has_shift()
+                        );
+                        if let Some(c) = c {
+                            print!("{c}");
+                        }
+                    },
                 },
             KeyEvent::Released(key) =>
                 match key {

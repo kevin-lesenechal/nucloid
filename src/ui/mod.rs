@@ -11,3 +11,4 @@
 pub mod pxfont;
 pub mod term;
 pub mod kterm;
+pub mod keymap;
