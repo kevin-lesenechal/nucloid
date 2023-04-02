@@ -190,18 +190,19 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     ) {
         let glyph = self.font.get_glyph(c)
             .unwrap_or(self.font.replacement_glyph());
-        if glyph.is_emoji() {
+        if glyph.is_rgba() {
             return self.render_emoji(c, x, y, style);
         }
 
         let orig_x = x * self.font.glyph_width() as usize;
         let orig_y = y * self.font.glyph_height() as usize;
+        let nr_cols = self.glyph_size(c) * self.font.glyph_width() as usize;
 
         let mut fb = self.fb.borrow_mut();
 
-        for (i, &value) in glyph.rgb_data().into_iter().enumerate() {
-            let x = orig_x + i % self.font.glyph_width() as usize;
-            let y = orig_y + i / self.font.glyph_width() as usize;
+        for (i, &value) in glyph.data().into_iter().enumerate() {
+            let x = orig_x + i % nr_cols as usize;
+            let y = orig_y + i / nr_cols as usize;
             let fg_color = Color {
                 r: (value as u16 * style.fg_color.r as u16 / 255) as u8,
                 g: (value as u16 * style.fg_color.g as u16 / 255) as u8,
@@ -229,13 +230,13 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
 
         let mut fb = self.fb.borrow_mut();
 
-        for (i, rgba) in glyph.rgb_data().chunks_exact(4).enumerate() {
+        for (i, rgba) in glyph.data().chunks_exact(4).enumerate() {
             let x = orig_x + i % (self.font.glyph_width() as usize * 2);
-            let y = orig_y + i / (self.font.glyph_width() as usize * 2) + 4;
+            let y = orig_y + i / (self.font.glyph_width() as usize * 2) + 2;
             let fg_color = Color {
-                r: rgba[0],
+                r: rgba[2],
                 g: rgba[1],
-                b: rgba[2],
+                b: rgba[0],
             };
             let bg_color = style.bg_color
                 .unwrap_or_else(|| self.bg_color_at(x, y));

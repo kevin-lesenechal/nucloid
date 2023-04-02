@@ -24,7 +24,8 @@ pub struct PxFont {
 
 pub struct Glyph {
     px: Vec<u8>,
-    is_emoji: bool,
+    nr_cols: u8,
+    is_rgba: bool,
 }
 
 #[derive(Error, Debug)]
@@ -57,7 +58,7 @@ struct FileHeader {
 struct GlyphBlock {
     start: u32,
     end: u32,
-    emojis: u8,
+    rgba: u8,
 }
 
 impl PxFont {
@@ -70,11 +71,7 @@ impl PxFont {
         loop {
             let block = GlyphBlock::read(&mut reader)
                 .map_err(|e| PxFontError::InvalidGlyphBlockHeader(e))?;
-            let is_emoji = block.emojis > 0;
-            let glyph_size = match is_emoji {
-                false => header.width as usize * header.height as usize,
-                true => header.width as usize * header.width as usize * 4 * 4,
-            };
+            let is_rgba = block.rgba > 0;
             let (start, end) = match (block.start.try_into(), block.end.try_into()) {
                 (Ok(start), Ok(end)) => (start, end),
                 _ => return Err(
@@ -83,15 +80,24 @@ impl PxFont {
             };
 
             for c in start..=end {
-                let data = remaining(&reader);
+                let mut data = remaining(&reader);
+                let nr_cols = data[0];
+                data = &data[1..];
+
+                let glyph_size = match is_rgba {
+                    false => nr_cols as usize * header.width as usize * header.height as usize,
+                    true => nr_cols as usize * header.width as usize * header.height as usize * 4,
+                };
+
                 if data.len() < glyph_size {
                     return Err(PxFontError::InvalidGlyph(c));
                 }
                 let glyph = Glyph {
                     px: data[..glyph_size].to_vec(),
-                    is_emoji,
+                    nr_cols,
+                    is_rgba,
                 };
-                reader.seek(SeekFrom::Current(glyph_size as i64)).unwrap();
+                reader.seek(SeekFrom::Current(glyph_size as i64 + 1)).unwrap();
                 chars.insert(c, glyph);
             }
 
@@ -134,18 +140,18 @@ impl PxFont {
 
 impl Glyph {
     #[inline]
-    pub fn rgb_data(&self) -> &[u8] {
+    pub fn data(&self) -> &[u8] {
         &self.px
     }
 
     #[inline]
-    pub fn is_emoji(&self) -> bool {
-        self.is_emoji
+    pub fn is_rgba(&self) -> bool {
+        self.is_rgba
     }
 
     #[inline]
     pub fn nr_columns(&self) -> usize {
-        if self.is_emoji { 2 } else { 1 }
+        self.nr_cols as usize
     }
 }
 
