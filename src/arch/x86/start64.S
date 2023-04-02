@@ -11,6 +11,7 @@
 .set VA_BASE,   0xffff800000000000
 .set VGA_ADDR,  0xb8000
 .set VGA_SIZE,  0xfa0
+.set NR_PT,     16
 
 /*
  * PML4:
@@ -115,30 +116,30 @@ _start:
     mov     $1024, %ecx
     rep stosl
 
-    // Setup PML4[0].PDPT[0].PD[0] PDEs (8)
+    // Setup PML4[0].PDPT[0].PD[0] PDEs (NR_PT)
     mov     $(boot_pdpt0_pd0 - VA_BASE), %edi
     xor     %eax, %eax
-    mov     $8, %ecx
+    mov     $NR_PT, %ecx
 1:  movl    %eax, (%edi)
     orl     $((1 << 0) | (1 << 1) | (1 << 7)), (%edi) // Present, writable, PS
     add     $8, %edi
     add     $(2 << 20), %eax
     loop    1b
 
-    // Setup PML4[256].PDPT[0].PD[0] PDEs (8)
+    // Setup PML4[256].PDPT[0].PD[0] PDEs (NR_PT)
     mov     $(boot_pdpt256_pd0 - VA_BASE), %edi
     mov     $(boot_pdpt256_pd0_pts - VA_BASE), %eax
-    mov     $8, %ecx
+    mov     $NR_PT, %ecx
 1:  movl    %eax, (%edi)
     orl     $((1 << 0) | (1 << 1)), (%edi) // Present, writable
     add     $8, %edi
     add     $4096, %eax
     loop    1b
 
-    // Setup PML4[256].PDPT[0].PD[0..8].PT[0..512]
+    // Setup PML4[256].PDPT[0].PD[0..NR_PT].PT[0..512]
     mov     $(boot_pdpt256_pd0_pts - VA_BASE), %edi
     xor     %eax, %eax
-    mov     $(8 * 512), %ecx
+    mov     $(NR_PT * 512), %ecx
 1:  movl    %eax, (%edi)
     orl     $((1 << 0) | (1 << 1)), (%edi) // Present, writable
     add     $8, %edi
@@ -261,7 +262,7 @@ boot_pdpt256:       .skip 4096
 boot_pdpt0_pd0:     .skip 4096
 boot_pdpt256_pd0:   .skip 4096
 
-boot_pdpt256_pd0_pts: .skip 4096 * 8
+boot_pdpt256_pd0_pts: .skip 4096 * NR_PT
 
 .section .boot_stack
 

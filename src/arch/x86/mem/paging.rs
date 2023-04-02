@@ -703,8 +703,8 @@ pub unsafe fn map_highmem_vaddr(vaddr: VAddr, paddr: PAddr) {
 
 #[cfg(target_arch = "x86_64")]
 fn get_boot_lowmem_va_end() -> VAddr {
-    // 8 PDs are contained in the first 8 entries of PML4[256].PDPT
-    unsafe { LOWMEM_VA_START + 8 * (2 << 20) }
+    // 16 PDs are contained in the first 16 entries of PML4[256].PDPT
+    unsafe { LOWMEM_VA_START + 16 * (2 << 20) }
 }
 
 #[cfg(target_arch = "x86")]
