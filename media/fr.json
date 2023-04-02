@@ -1,8 +1,8 @@
 {
     "`": {"regular": "²³", "altgr": "¹\u0000"},
-    "1": {"regular": "&1", "altgr": "\u0000\u0000"},
+    "1": {"regular": "&1", "altgr": "\u030c\u031c"},
     "2": {"regular": "é2É2", "altgr": "~É"},
-    "3": {"regular": "\"3", "altgr": "#\u0000"},
+    "3": {"regular": "\"3", "altgr": "#\u0306"},
     "4": {"regular": "'4", "altgr": "{—"},
     "5": {"regular": "(5", "altgr": "[–"},
     "6": {"regular": "-6", "altgr": "|‑"},
@@ -23,7 +23,7 @@
     "I": {"regular": "iIIi", "altgr": "îÎÎî"},
     "O": {"regular": "oOOo", "altgr": "œŒŒœ"},
     "P": {"regular": "pPPp", "altgr": "ôÔÔô"},
-    "[": {"regular": "\u0000\u0000", "altgr": "\u0000\u0000"},
+    "[": {"regular": "\u0302\u0308", "altgr": "\u0303\u030a"},
     "]": {"regular": "$£", "altgr": "øØØø"},
 
     "A": {"regular": "qQQq", "altgr": "äÄÄä"},
@@ -36,8 +36,8 @@
     "K": {"regular": "kKKk", "altgr": "ïÏÏï"},
     "L": {"regular": "lLLl", "altgr": "ŀĿĿŀ"},
     ";": {"regular": "mMMm", "altgr": "öÖÖö"},
-    "'": {"regular": "ù%Ù%", "altgr": "\u0000Ù\u0000ù"},
-    "\\": {"regular": "*µ", "altgr": "\u0000\u0000"},
+    "'": {"regular": "ù%Ù%", "altgr": "\u0301Ù\u0301ù"},
+    "\\": {"regular": "*µ", "altgr": "\u0300\u0304"},
 
     "iso": {"regular": "<>", "altgr": "≤≥"},
     "Z": {"regular": "wWWw", "altgr": "«“"},

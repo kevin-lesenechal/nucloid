@@ -3,11 +3,11 @@ use binrw::{BinRead, NullString};
 use binrw::io::Cursor;
 use hashbrown::HashMap;
 
-use crate::driver::keyboard::Key;
+use crate::driver::keyboard::{Deadkey, Key};
 
 pub struct KeymapState {
     keymap: Keymap,
-    deadkey: Option<char>,
+    deadkey: Option<Deadkey>,
 }
 
 pub struct Keymap {
@@ -17,6 +17,38 @@ pub struct Keymap {
 #[derive(Debug)]
 pub enum KeymapError {
     InvalidKeymapFile,
+}
+
+impl KeymapState {
+    pub fn new(keymap: Keymap) -> Self {
+        Self {
+            keymap,
+            deadkey: None,
+        }
+    }
+
+    pub fn glyph(
+        &mut self,
+        key: Key,
+        altgr: bool,
+        capslock: bool,
+        shift: bool,
+    ) -> Option<char> {
+        let c = self.keymap.glyph(key, altgr, capslock, shift)?;
+
+        if let Some(deadkey) = c.try_into().ok() {
+            self.deadkey = Some(deadkey);
+            None
+        } else {
+            if let Some(ref deadkey) = self.deadkey {
+                let c = deadkey.apply(c);
+                self.deadkey = None;
+                c
+            } else {
+                Some(c)
+            }
+        }
+    }
 }
 
 impl Keymap {

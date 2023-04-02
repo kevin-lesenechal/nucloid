@@ -2,7 +2,7 @@ use core::str::FromStr;
 
 use crate::{arch, print, println, warning};
 use crate::sync::Spinlock;
-use crate::ui::keymap::Keymap;
+use crate::ui::keymap::{Keymap, KeymapState};
 use crate::ui::kterm::KERNEL_TERMINAL;
 
 #[derive(Debug)]
@@ -71,6 +71,17 @@ pub enum Key {
     KeypadNumLock,
 }
 
+pub enum Deadkey {
+    GraveAccent,
+    AcuteAccent,
+    Circumflex,
+    Tilde,
+    Macron,
+    Breve,
+    Diaeresis,
+    Caron,
+}
+
 impl FromStr for Key {
     type Err = ();
 
@@ -91,7 +102,8 @@ impl FromStr for Key {
                 '/' => Key::Slash,
                 '\\' => Key::Backslash,
                 'A'..='Z' => Key::Letter(c),
-                _ => return Err(()),            }
+                _ => return Err(()),
+            }
         } else {
             match s {
                 "iso" => Key::Iso,
@@ -116,10 +128,83 @@ impl FromStr for Key {
     }
 }
 
+impl Deadkey {
+    pub fn apply(&self, c: char) -> Option<char> {
+        Some(match self {
+            Deadkey::Circumflex => {
+                match c {
+                    'a' => 'â',
+                    'z' => 'ẑ',
+                    'e' => 'ê',
+                    'y' => 'ŷ',
+                    'u' => 'û',
+                    'i' => 'î',
+                    'o' => 'ô',
+                    's' => 'ŝ',
+                    'g' => 'ĝ',
+                    'h' => 'ĥ',
+                    'j' => 'ĵ',
+                    'w' => 'ŵ',
+                    'c' => 'ĉ',
+                    'A' => 'Â',
+                    'Z' => 'Ẑ',
+                    'E' => 'Ê',
+                    'Y' => 'Ŷ',
+                    'U' => 'Û',
+                    'I' => 'Î',
+                    'O' => 'Ô',
+                    'S' => 'Ŝ',
+                    'G' => 'Ĝ',
+                    'H' => 'Ĥ',
+                    'J' => 'Ĵ',
+                    'W' => 'Ŵ',
+                    'C' => 'Ĉ',
+                    _ => return None,
+                }
+            },
+            Deadkey::Diaeresis => {
+                match c {
+                    'a' => 'ä',
+                    'e' => 'ë',
+                    't' => 'ẗ',
+                    'y' => 'ÿ',
+                    'u' => 'ü',
+                    'i' => 'ï',
+                    'o' => 'ö',
+                    'h' => 'ḧ',
+                    'w' => 'ẅ',
+                    'x' => 'ẍ',
+                    _ => return None,
+                }
+            },
+            // TODO: Implement the rest
+            _ => return None,
+        })
+    }
+}
+
+impl TryFrom<char> for Deadkey {
+    type Error = ();
+
+    fn try_from(value: char) -> Result<Self, Self::Error> {
+        Ok(match value {
+            '\u{0300}' => Deadkey::GraveAccent,
+            '\u{0301}' => Deadkey::AcuteAccent,
+            '\u{0302}' => Deadkey::Circumflex,
+            '\u{0303}' => Deadkey::Tilde,
+            '\u{0304}' => Deadkey::Macron,
+            '\u{0306}' => Deadkey::Breve,
+            '\u{0308}' => Deadkey::Diaeresis,
+            '\u{030c}' => Deadkey::Caron,
+            _ => return Err(()),
+        })
+    }
+}
+
 static KEYBOARD: Spinlock<Option<Keyboard>> = Spinlock::new(None);
 
 struct Keyboard {
-    keymap: Keymap,
+    keymap: KeymapState,
 
     lctrl: bool,
     rctrl: bool,
@@ -144,9 +229,9 @@ impl Keyboard {
             lmeta: false,
             rmeta: false,
             capslock: false,
-            keymap: Keymap::from_file(include_bytes!(
+            keymap: KeymapState::new(Keymap::from_file(include_bytes!(
                 concat!(env!("CARGO_MANIFEST_DIR"), "/media/fr.keymap")
-            )).unwrap(),
+            )).unwrap()),
         }
     }
 
