@@ -112,10 +112,13 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
                 self.advance_y();
             },
             '\t' => self.advance_x(8 - (self.cursor_x & 0b111)),
-            //' ' | '\u{a0}' | '\u{202f}' => self.advance_x(1),
             '\r' => self.cursor_x = 0,
             '\x00'..='\x1f' | '\x7f' => return,
-            c => {
+            mut c => {
+                if c == '\u{a0}' || c == '\u{202f}' {
+                    c = ' ';
+                }
+
                 let glyph_size = self.glyph_size(c);
                 if self.cursor_x + glyph_size >= self.columns {
                     self.cursor_x = 0;
