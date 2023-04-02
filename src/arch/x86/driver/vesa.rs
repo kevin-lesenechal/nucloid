@@ -51,6 +51,12 @@ impl FramebufferScreen for VesaFramebuffer {
         self.mem[index] = px;
     }
 
+    fn copy(&mut self, x: usize, y: usize, data: &[u32]) {
+        let index = (self.pitch >> 2) * y + x;
+        let target = &mut self.mem[index..(index + data.len())];
+        target.copy_from_slice(data);
+    }
+
     fn clear(&mut self) {
         todo!()
     }

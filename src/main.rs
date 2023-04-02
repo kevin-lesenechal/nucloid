@@ -33,13 +33,16 @@ pub mod logging;
 pub mod sync;
 pub mod screen;
 pub mod panic;
+
+#[macro_use]
 pub mod misc;
+
 pub mod task;
 pub mod ui;
 mod backtrace;
 
 fn main() -> ! {
-    println!("Hello, world!");
+    println!("Nucloid v{}", env!("CARGO_PKG_VERSION"));
     println!();
     println!("\x1b<fg=cc7832>impl\x1b<!fg> PxFont {{");
     println!("    \x1b<fg=cc7832>pub fn\x1b<!fg> \x1b<fg=ffc66d>from_data\x1b<!fg>(data: &[\x1b<fg=cc7832>u8\x1b<!fg>]) -> Result<\x1b<fg=cc7832>Self,\x1b<!fg> PxFontError> {{");

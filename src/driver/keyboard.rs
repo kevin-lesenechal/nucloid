@@ -1,5 +1,6 @@
 use crate::{arch, print, println, warning};
 use crate::sync::Spinlock;
+use crate::ui::kterm::KERNEL_TERMINAL;
 
 #[derive(Debug)]
 pub enum KeyEvent {
@@ -102,7 +103,14 @@ impl Keyboard {
             KeyEvent::Pressed(key) =>
                 match key {
                     Key::Letter(l) => {
-                        print!("{}", if self.has_shift() { l } else { l.to_ascii_lowercase() })
+                        if self.has_ctrl() {
+                            match l {
+                                'L' => KERNEL_TERMINAL.lock().as_mut().unwrap().clear(),
+                                _ => (),
+                            }
+                        } else {
+                            print!("{}", if self.has_shift() { l } else { l.to_ascii_lowercase() })
+                        }
                     },
                     Key::Digit(n) | Key::KeypadDigit(n) => print!("{}", (0x30 + n) as char),
                     Key::Space => print!(" "),

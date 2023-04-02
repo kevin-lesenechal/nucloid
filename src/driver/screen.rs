@@ -63,6 +63,8 @@ pub trait FramebufferScreen {
 
     fn put(&mut self, x: usize, y: usize, color: Color);
 
+    fn copy(&mut self, x: usize, y: usize, data: &[u32]);
+
     fn clear(&mut self);
 }
 

@@ -55,7 +55,7 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         let rows = height_px / font.glyph_height() as usize;
 
         let mut term = Self {
-            background: include_bytes!(
+            background: include_bytes_align_as!(u32,
                 concat!(env!("CARGO_MANIFEST_DIR"), "/media/wallpaper.data")
             ),
             font,
@@ -75,16 +75,23 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     }
 
     pub fn clear(&mut self) {
-        let mut fb = self.fb.borrow_mut();
-
-        for y in 0..fb.dimensions().1 {
-            for x in 0..fb.dimensions().0 {
-                let rgb = &self.background[((y * 1920 + x) * 3)..];
-                fb.put(x, y, Color { r: rgb[0], g: rgb[1], b: rgb[2] });
-            }
-        }
+        self.clear_visual();
 
         self.cells = vec![Default::default(); self.rows * self.columns].into();
+        self.cursor_x = 0;
+        self.cursor_y = 0;
+    }
+
+    fn clear_visual(&self) {
+        let mut fb = self.fb.borrow_mut();
+
+        let dst_row_len = fb.dimensions().0;
+        let mut src_row = unsafe { self.background.align_to::<u32>().1 };
+
+        for y in 0..fb.dimensions().1 {
+            fb.copy(0, y, unsafe { (&src_row[..dst_row_len]).align_to::<u32>().1 });
+            src_row = &src_row[1920..];
+        }
     }
 
     pub fn write(&mut self, s: &str) {
@@ -238,17 +245,19 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     }
 
     fn bg_color_at(&self, x: usize, y: usize) -> Color {
-        let rgb = &self.background[((y * 1920 + x) * 3)..];
+        let rgb = &self.background[((y * 1920 + x) * 4)..];
 
-        Color { r: rgb[0], g: rgb[1], b: rgb[2] }
+        Color { r: rgb[2], g: rgb[1], b: rgb[0] }
     }
 
     fn rerender(&mut self) {
+        self.clear_visual();
+
         for (i, cell) in self.cells.iter().enumerate() {
             let y = i / self.columns;
             let x = i % self.columns;
 
-            if cell.c != '\0' {
+            if cell.c != '\0' && cell.c != ' ' {
                 self.render_glyph(cell.c, x, y, cell.style);
             }
         }
