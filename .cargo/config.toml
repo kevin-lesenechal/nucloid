@@ -1,13 +1,6 @@
 #[target.'cfg(target_os = "linux")']
 #rustflags = ["-C", "link-arg=-nostartfiles"]
 
-[target.i686-nucloid]
-rustflags = [
-    "-C", "link-arg=-Ttargets/i686.ld",
-    "-C", "link-arg=-nostartfiles",
-    "-C", "force-unwind-tables=yes"
-]
-
 [target.x86_64-nucloid]
 rustflags = [
     "-C", "link-arg=-Ttargets/x86_64.ld",

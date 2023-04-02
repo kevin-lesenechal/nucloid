@@ -11,36 +11,11 @@
 use core::arch::asm;
 use core::fmt;
 use core::fmt::{Formatter, Display};
-use crate::arch::x86::driver::ps2;
 
+use crate::arch::x86::driver::ps2;
 use crate::driver::vga::VgaScreen;
 use crate::println;
 
-#[cfg(target_arch = "x86")]
-pub struct MachineState {
-    pub eax: u32,
-    pub ebx: u32,
-    pub ecx: u32,
-    pub edx: u32,
-
-    pub edi: u32,
-    pub esi: u32,
-
-    pub esp: u32,
-    pub ebp: u32,
-
-    pub eip: u32,
-    pub eflags: u32,
-
-    pub cs: u16,
-    pub ss: u16,
-    pub ds: u16,
-    pub es: u16,
-    pub fs: u16,
-    pub gs: u16,
-}
-
-#[cfg(target_arch = "x86_64")]
 pub struct MachineState {
     pub rax: u64,
     pub rbx: u64,
@@ -73,7 +48,6 @@ pub struct MachineState {
     pub gs: u16,
 }
 
-#[cfg(target_arch = "x86_64")]
 impl MachineState {
     #[inline(always)]
     pub fn here() -> Self {
@@ -167,7 +141,6 @@ impl MachineState {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
 impl Display for MachineState {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use crate::screen::R;
@@ -182,35 +155,6 @@ impl Display for MachineState {
                  R(self.r12), R(self.r13), R(self.r14), R(self.r15))?;
         writeln!(f, "rip={:016x}   cs={:04x}   ss={:04x}   ds={:04x}   es={:04x}   fs={:04x}   gs={:04x}",
                  self.rip, self.cs, self.ss, self.ds, self.es, self.fs, self.gs)
-    }
-}
-
-#[cfg(target_arch = "x86")]
-impl Display for MachineState {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use crate::screen::R;
-
-        writeln!(f, "eax={:x}  ebx={:x}  ecx={:x}  edx={:x}",
-                 R(self.eax), R(self.ebx), R(self.ecx), R(self.edx))?;
-        writeln!(f, "edi={:x}  esi={:x}  ebp={:x}  esp={:x}",
-                 R(self.edi), R(self.esi), R(self.ebp), R(self.esp))?;
-        writeln!(f, "eip={:x}   cs={:04x}   ss={:04x}   ds={:04x}   es={:04x}   fs={:04x}   gs={:04x}",
-                 R(self.eip), self.cs, self.ss, self.ds, self.es, self.fs, self.gs)
-    }
-}
-
-#[cfg(target_arch = "x86")]
-impl MachineState {
-    pub fn print(&self, vga: &mut impl VgaScreen) -> fmt::Result {
-        use crate::screen::R;
-
-        writeln!(vga, "eax={:08x}   ebx={:08x}   ecx={:08x}   edx={:08x}",
-                 R(self.eax), R(self.ebx), R(self.ecx), R(self.edx))?;
-        writeln!(vga, "edi={:08x}   esi={:08x}   ebp={:08x}   esp={:08x}",
-                 R(self.edi), R(self.esi), R(self.ebp), R(self.esp))?;
-        writeln!(vga, "eip={:08x}   cs={:04x}   ds={:04x}   es={:04x}   fs={:04x}   gs={:04x}",
-                 R(self.eip), self.cs, self.ds, self.es, self.fs, self.gs)?;
-        writeln!(vga, "eflags={:08x}", R(self.eflags))
     }
 }
 

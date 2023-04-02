@@ -9,13 +9,13 @@
  ******************************************************************************/
 
 /*#[cfg(all(
-    //any(target_arch = "x86", target_arch = "x86_64"),
+    //target_arch = "x86_64",
     not(test)
 ))]*/
 mod x86;
 
 /*#[cfg(all(
-    //any(target_arch = "x86", target_arch = "x86_64"),
+    //target_arch = "x86_64",
     not(test)
 ))]*/
 pub use crate::arch::x86::export::*;

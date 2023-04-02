@@ -18,17 +18,9 @@ use crate::arch::mem::{LOWMEM_VA_START, LOWMEM_SIZE};
 use crate::mem::frame::{AllocatorBuilder, FRAME_ALLOCATOR};
 use crate::mem::{PAddr, PHYS_MEM_SIZE};
 use crate::debug;
-
-#[cfg(target_arch = "x86")]
-use crate::mem::highmem::{HIGHMEM_ALLOCATOR, HighmemAllocator};
-#[cfg(target_arch = "x86")]
-use crate::mem::frame::allocate_frames;
-#[cfg(target_arch = "x86")]
-use crate::misc::align_up;
 use crate::misc::BinSize;
 
 pub mod paging;
-mod highmem;
 
 pub fn lowmem_va_size(mem_maps: &MemoryMapTag) -> usize {
     let mut lowmem_size = 0;
@@ -100,31 +92,6 @@ pub unsafe fn boot_setup(mem_maps: &MemoryMapTag) {
         let mut allocator = FRAME_ALLOCATOR.lock();
         assert!(allocator.is_none());
         *allocator = Some(allocator_b.build());
-    }
-
-    #[cfg(target_arch = "x86")] {
-        use crate::arch::mem::{HIGHMEM_VA_START, HIGHMEM_VA_SIZE, PAGE_SIZE_BITS};
-
-        let nr_highmem_pages = HIGHMEM_VA_SIZE >> PAGE_SIZE_BITS;
-        let buffer = allocate_frames()
-            .nr_frames(align_up(nr_highmem_pages, 4096) >> 12)
-            .zero_mem()
-            .map_lowmem()
-            .expect("couldn't allocate high-memory buffer in low-memory")
-            .as_mut_ptr::<bool>();
-        let highmem_buff = core::slice::from_raw_parts_mut(
-            buffer,
-            nr_highmem_pages
-        );
-
-        let highmem_allocator = HighmemAllocator::new(
-            HIGHMEM_VA_START,
-            nr_highmem_pages,
-            highmem_buff,
-        );
-        *HIGHMEM_ALLOCATOR.lock() = Some(highmem_allocator);
-        debug!("High-memory allocator configured (VA {:?})",
-               HIGHMEM_VA_START);
     }
 }
 

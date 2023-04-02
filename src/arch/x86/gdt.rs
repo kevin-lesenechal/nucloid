@@ -23,17 +23,9 @@ use x86::bits64::segmentation::Descriptor64;
 
 use crate::mem::{PAddr, VAddr};
 
-#[cfg(target_arch = "x86_64")]
 type DescriptorN = Descriptor64;
 
-#[cfg(target_arch = "x86")]
-type DescriptorN = Descriptor32;
-
-#[cfg(target_arch = "x86_64")]
 type UsizeT = u64;
-
-#[cfg(target_arch = "x86")]
-type UsizeT = u32;
 
 #[derive(Default)]
 #[repr(C, packed)]
@@ -70,12 +62,7 @@ pub unsafe fn setup_table() {
         .present()
         .dpl(Ring0)
         .limit_granularity_4kb();
-    #[cfg(target_arch = "x86_64")] {
-        cs = cs.l();
-    }
-    #[cfg(target_arch = "x86")] {
-        cs = cs.db();
-    }
+    cs = cs.l();
     BSP_GDT.kernel_cs = cs.finish();
 
     BSP_GDT.kernel_ds =
@@ -92,15 +79,13 @@ pub unsafe fn setup_table() {
             .limit_granularity_4kb()
             .db()
             .finish();
-    #[cfg(target_arch = "x86_64")] {
-        BSP_GDT.user_cs64 =
-            DescriptorBuilder::code_descriptor(0, 0xfffff, ExecuteRead)
-                .present()
-                .dpl(Ring3)
-                .limit_granularity_4kb()
-                .l()
-                .finish();
-    }
+    BSP_GDT.user_cs64 =
+        DescriptorBuilder::code_descriptor(0, 0xfffff, ExecuteRead)
+            .present()
+            .dpl(Ring3)
+            .limit_granularity_4kb()
+            .l()
+            .finish();
     BSP_GDT.user_ds =
         DescriptorBuilder::data_descriptor(0, 0xfffff, ReadWrite)
             .present()

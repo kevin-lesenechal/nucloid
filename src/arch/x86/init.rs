@@ -72,10 +72,7 @@ pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
     *DEFAULT_LOGGER.lock() = LOGGER_SERIAL.as_mut().unwrap();
 
     let mbi = multiboot2::load(
-        multiboot_info_pa
-            .into_lowmem_vaddr()
-            .unwrap()
-            .0
+        multiboot_info_pa.into_vaddr().0
     ).unwrap();
 
     notice!("Nucloid v{}", env!("CARGO_PKG_VERSION"));
@@ -116,7 +113,7 @@ pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
     pop_critical_region();
 
     let fb_bsize = fb_pitch as usize * fb_height as usize;
-    let fb_vaddr = fb_addr.into_vaddr(fb_bsize >> 12).unwrap();
+    let fb_vaddr = fb_addr.into_vaddr();
 
     let fb = VesaFramebuffer::new(
         fb_vaddr.0 as _,
@@ -127,7 +124,7 @@ pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
     );
 
     debug!("fb ({fb_width}×{fb_height}) paddr = {:?}, vaddr = {:?}, size = {}",
-           fb_addr, *fb_vaddr, fb_bsize);
+           fb_addr, fb_vaddr, fb_bsize);
     *KERNEL_TERMINAL.lock() = Some(Terminal::create(fb));
     let term_logger = Box::leak(Box::new(TerminalLogger::new(reset_logger())));
     *DEFAULT_LOGGER.lock() = term_logger;

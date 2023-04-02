@@ -8,13 +8,7 @@ x86_64-debug:
 x86_64-release:
 	$(CARGO_BUILD) --release --target targets/x86_64-nucloid.json
 
-i686-debug:
-	$(CARGO_BUILD) --target targets/i686-nucloid.json
-
-i686-release:
-	$(CARGO_BUILD) --release --target targets/i686-nucloid.json
-
 tests:
 	cargo +nightly test
 
-.PHONY: x86_64-debug x86_64-release i686-debug i686-release tests
+.PHONY: x86_64-debug x86_64-release tests

@@ -8,7 +8,6 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-#[cfg(target_arch = "x86_64")]
 pub struct TaskMachineContext {
     pub rax: u64,
     pub rbx: u64,
@@ -41,30 +40,4 @@ pub struct TaskMachineContext {
     pub gs: u16,
 
     pub cr3: u64,
-}
-
-#[cfg(target_arch = "x86")]
-pub struct TaskMachineContext {
-    pub eax: u32,
-    pub ebx: u32,
-    pub ecx: u32,
-    pub edx: u32,
-
-    pub edi: u32,
-    pub esi: u32,
-
-    pub esp: u32,
-    pub ebp: u32,
-
-    pub eip: u32,
-    pub eflags: u32,
-
-    pub cs: u16,
-    pub ss: u16,
-    pub ds: u16,
-    pub es: u16,
-    pub fs: u16,
-    pub gs: u16,
-
-    pub cr3: u32,
 }

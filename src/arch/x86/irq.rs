@@ -23,7 +23,6 @@ use crate::arch::x86::driver::ps2;
 use crate::arch::x86::gdt::KERNEL_CODE_SELECTOR;
 use crate::println;
 
-#[cfg(target_arch = "x86_64")]
 #[repr(C, packed)]
 struct IsrRegisters {
     rip:    u64,
@@ -33,15 +32,6 @@ struct IsrRegisters {
     ss:     u64,
 }
 
-#[cfg(target_arch = "x86")]
-#[repr(C, packed)]
-struct IsrRegisters {
-    eip:    u32,
-    cs:     u32,
-    eflags: u32,
-}
-
-#[cfg(target_arch = "x86_64")]
 #[repr(C, packed)]
 struct GPRegisters {
     rdi:    u64,
@@ -59,19 +49,6 @@ struct GPRegisters {
     r13:    u64,
     r14:    u64,
     r15:    u64,
-}
-
-#[cfg(target_arch = "x86")]
-#[repr(C, packed)]
-struct GPRegisters {
-    edi:    u32,
-    esi:    u32,
-    ebp:    u32,
-    esp:    u32,
-    ebx:    u32,
-    edx:    u32,
-    ecx:    u32,
-    eax:    u32,
 }
 
 extern {
@@ -178,10 +155,7 @@ static VECTORS: [unsafe extern fn(); 48] = [
 
 static mut PIC8259: Option<Pic8259> = None;
 
-#[cfg(target_arch = "x86_64")]
 type DescriptorType = x86::bits64::segmentation::Descriptor64;
-#[cfg(target_arch = "x86")]
-type DescriptorType = x86::segmentation::Descriptor;
 
 static mut IDT: [DescriptorType; 64] = [DescriptorType::NULL; 64];
 
@@ -190,10 +164,7 @@ pub unsafe fn get_pic() -> &'static mut Pic8259 {
 }
 
 pub unsafe fn setup() {
-    #[cfg(target_arch = "x86_64")]
     type IdtType = u64;
-    #[cfg(target_arch = "x86")]
-    type IdtType = u32;
 
     let mut pic = Pic8259::new(0x20, 0xa0);
     pic.init(32, 40);
@@ -218,7 +189,6 @@ pub unsafe fn setup() {
     lidt(&ptr);
 }
 
-#[cfg(target_arch = "x86_64")]
 #[no_mangle]
 unsafe extern "C" fn isr_exception(
     vec_i: usize,
@@ -234,24 +204,6 @@ unsafe extern "C" fn isr_exception(
         rip: isr_regs.rip, rflags: isr_regs.rflags,
         cs: isr_regs.cs as u16, ss: isr_regs.ss as u16,
         ds: 0, es: 0, fs: 0, gs: 0, // TODO: seg regs
-    };
-
-    handle_exception(vec_i, Some(errc), &machine_state);
-}
-
-#[cfg(target_arch = "x86")]
-#[no_mangle]
-unsafe extern "C" fn isr_exception(
-    vec_i: usize,
-    regs: GPRegisters,
-    errc: usize,
-    isr_regs: IsrRegisters,
-) {
-    let machine_state = MachineState {
-        eax: regs.eax, ebx: regs.ebx, ecx: regs.ecx, edx: regs.edx,
-        edi: regs.edi, esi: regs.esi, esp: regs.esp, ebp: regs.ebp,
-        eip: isr_regs.eip, eflags: isr_regs.eflags,
-        cs: isr_regs.cs as u16, ss: 0, ds: 0, es: 0, fs: 0, gs: 0, // TODO: seg regs
     };
 
     handle_exception(vec_i, Some(errc), &machine_state);

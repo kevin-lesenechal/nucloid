@@ -22,8 +22,7 @@ use core::mem::size_of;
 use crate::sync::Spinlock;
 use crate::mem::{PAddr, get_lowmem_va_end, VAddr};
 use crate::arch::mem::{FRAME_SIZE, FRAME_SIZE_BITS};
-use crate::{debug, error};
-use crate::mem::highmem::HighmemGuard;
+use crate::debug;
 use crate::misc::align_up;
 
 #[derive(Debug, Copy, Clone)]
@@ -93,30 +92,21 @@ impl FrameAllocator {
     ///
     /// # Parameters #
     ///
-    /// * `can_highmem`: specifies whether the caller allows the allocator to
-    ///                  reserve a frame in high-memory, the call will fail if
-    ///                  this parameter is false (the caller refuses high-memory
-    ///                  frames) and no low-memory frame is available.
+    /// * `nr_frames`: The number of frames to allocate.
     ///
     /// # Return #
     ///
     /// The physical address of the allocated frame's first byte, None if no
     /// frame could be found that satisfies the request.
-    // BUG: strongly prefer high-memory if `can_highmem`
     pub fn allocate(
         &mut self,
         nr_frames: usize,
-        can_highmem: bool,
     ) -> Option<PAddr> {
         let mut nr_free = 0;
         let mut free_index = None;
 
         for (i, frame) in self.frames.iter_mut().enumerate() {
             if frame.is_free_ram() {
-                let paddr = Self::frame_paddr(i);
-                if paddr.is_highmem() && !can_highmem {
-                    return None;
-                }
                 nr_free += 1;
 
                 if nr_free == nr_frames {
@@ -140,33 +130,6 @@ impl FrameAllocator {
         } else {
             None
         }
-    }
-
-    /// Allocate a single frame from general purpose RAM and create a writable
-    /// virtual memory mapping to it. Optionally, zero the page.
-    ///
-    /// If successful, the caller owns the page's memory area up until it is
-    /// deallocated; the allocator guarantees that no other references will
-    /// point in the page addresses, so the caller may safely create a mutable
-    /// reference to it.
-    ///
-    /// # Parameters #
-    ///
-    /// * `can_highmem`: specifies whether the caller allows the allocator to
-    ///                  reserve a frame in high-memory, the call will fail if
-    ///                  this parameter is false (the caller refuses high-memory
-    ///                  frames) and no low-memory frame is available;
-    /// * `zero`: whether to initialize the frame with zeroes or not.
-    ///
-    /// # Return #
-    ///
-    /// The virtual address at which the page mapping the frame in VM resides,
-    /// `None` if no frame could be found that satisfies the request.
-    pub fn allocate_map(&mut self,
-                        _nr_frames: usize,
-                        _can_highmem: bool,
-                        _zero: bool) -> Option<HighmemGuard> {
-        panic!("deprecated")
     }
 
     pub unsafe fn free(&mut self, frame_addr: PAddr, nr_frames: usize) {
@@ -198,24 +161,17 @@ pub fn allocate_frames() -> AllocationBuilder {
     AllocationBuilder {
         nr_frames: 1,
         zero: false,
-        can_highmem: false,
     }
 }
 
 pub struct AllocationBuilder {
     nr_frames: usize,
     zero: bool,
-    can_highmem: bool,
 }
 
 impl AllocationBuilder {
     pub fn nr_frames(&mut self, nr_frames: usize) -> &mut Self {
         self.nr_frames = nr_frames;
-        self
-    }
-
-    pub fn allow_highmem(&mut self) -> &mut Self {
-        self.can_highmem = true;
         self
     }
 
@@ -230,22 +186,12 @@ impl AllocationBuilder {
         let paddr = allocator
             .as_mut()
             .expect("no frame allocator configured")
-            .allocate(self.nr_frames, self.can_highmem)?;
+            .allocate(self.nr_frames)?;
 
         if self.zero {
-            if let Some(vaddr) = paddr.into_vaddr(self.nr_frames) {
-                unsafe {
-                    vaddr.as_mut_ptr::<u8>()
-                        .write_bytes(0, self.nr_frames * 4096);
-                }
-            } else {
-                error!("couldn't zero frame: failed to map in high-memory");
-                unsafe {
-                    allocator
-                        .as_mut()
-                        .expect("no frame allocator configured")
-                        .free(paddr, self.nr_frames);
-                }
+            unsafe {
+                paddr.into_vaddr().as_mut_ptr::<u8>()
+                    .write_bytes(0, self.nr_frames * 4096);
             }
         }
 
@@ -258,8 +204,8 @@ impl AllocationBuilder {
         let vaddr = allocator
             .as_mut()
             .expect("no frame allocator configured")
-            .allocate(self.nr_frames, self.can_highmem)?
-            .into_lowmem_vaddr()?;
+            .allocate(self.nr_frames)?
+            .into_vaddr();
 
         if self.zero {
             unsafe {

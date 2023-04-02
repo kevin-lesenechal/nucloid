@@ -16,7 +16,6 @@ use crate::arch::cpu::MachineState;
 use crate::panic::panic_at_state;
 
 pub mod frame;
-pub mod highmem;
 pub mod kalloc;
 pub mod load;
 
