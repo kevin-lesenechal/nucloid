@@ -6,3 +6,7 @@ architectures.
 
 Nucloid is highly experimental and still in its early stage of development,
 use this code with caution.
+
+## Building Nucloid ##
+
+For build instructions, see [`BUILDING.md`](BUILDING.md).
