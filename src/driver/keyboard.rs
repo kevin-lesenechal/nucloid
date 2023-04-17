@@ -266,7 +266,7 @@ impl Keyboard {
             rmeta: false,
             capslock: false,
             keymap: KeymapState::new(Keymap::from_file(include_bytes!(
-                concat!(env!("CARGO_MANIFEST_DIR"), "/media/fr.keymap")
+                concat!(env!("CARGO_MANIFEST_DIR"), "/media/us.keymap")
             )).unwrap()),
         }
     }
