@@ -8,16 +8,34 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use core::mem::transmute;
 use core::str::FromStr;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
     pub b: u8,
 }
 
+#[derive(Debug, Copy, Clone, Default)]
+#[repr(C, align(4))]
+pub struct ColorA {
+    pub b: u8,
+    pub g: u8,
+    pub r: u8,
+    pub a: u8,
+}
+
 impl Color {
+    pub fn from_bgra_u32(bgra: u32) -> Self {
+        Self {
+            r: ((bgra & 0x00ff0000) >> 16) as u8,
+            g: ((bgra & 0x0000ff00) >> 8) as u8,
+            b: (bgra & 0x000000ff) as u8,
+        }
+    }
+
     pub fn blend(fg: Color, alpha: u8, bg: Color) -> Color {
         Color {
             r: Self::blend_channel(fg.r, alpha, bg.r),
@@ -26,11 +44,64 @@ impl Color {
         }
     }
 
+    pub fn with_alpha(self, a: u8) -> ColorA {
+        ColorA {
+            r: self.r,
+            g: self.g,
+            b: self.b,
+            a,
+        }
+    }
+
+    #[inline]
+    pub fn as_bgra(self) -> [u8; 4] {
+        [self.b, self.g, self.r, 255]
+    }
+
+    #[inline]
     fn blend_channel(fg: u8, alpha: u8, bg: u8) -> u8 {
         let fg = (alpha as u16 * fg as u16 / 255) as u8;
         let bg = ((255 - alpha) as u16 * bg as u16 / 255) as u8;
 
         fg + bg
+    }
+}
+
+impl ColorA {
+    #[inline]
+    pub fn from_bgra_u32(bgra: u32) -> Self {
+        unsafe { transmute(bgra) }
+    }
+
+    #[inline]
+    pub fn blend(self, other: ColorA) -> ColorA {
+        if self.a == 0 {
+            other
+        } else if self.a == 255 {
+            self
+        } else {
+            ColorA {
+                r: Color::blend_channel(self.r, self.a, other.r),
+                g: Color::blend_channel(self.g, self.a, other.g),
+                b: Color::blend_channel(self.b, self.a, other.b),
+                a: 255,
+            }
+        }
+    }
+
+    #[inline]
+    pub fn as_bgra(self) -> [u8; 4] {
+        unsafe { transmute(self) }
+    }
+
+    #[inline]
+    pub fn as_bgra_u32(self) -> u32 {
+        unsafe { transmute(self) }
+    }
+
+    #[inline]
+    pub fn as_rgb(self) -> Color {
+        Color { r: self.r, g: self.g, b: self.b }
     }
 }
 

@@ -10,11 +10,12 @@
 
 use alloc::collections::VecDeque;
 use alloc::vec;
-use core::cell::RefCell;
+use alloc::vec::Vec;
 use core::fmt;
+use core::mem::transmute;
 use core::str::FromStr;
 
-use crate::driver::screen::{Color, FramebufferScreen};
+use crate::driver::screen::{Color, ColorA, FramebufferScreen};
 use crate::ui::pxfont::PxFont;
 
 const DEFAULT_FG_COLOR: Color = Color { r: 169, g: 183, b: 198 };
@@ -22,7 +23,7 @@ const DEFAULT_FG_COLOR: Color = Color { r: 169, g: 183, b: 198 };
 pub struct Terminal<Fb> {
     background: &'static [u8],
     font: PxFont,
-    fb: RefCell<Fb>,
+    fb: Fb,
     width_px: usize,
     height_px: usize,
     columns: usize,
@@ -31,6 +32,7 @@ pub struct Terminal<Fb> {
     cursor_y: usize,
     curr_style: GlyphStyle,
     cells: VecDeque<TermCell>,
+    back_buffer: VecDeque<ColorA>,
 }
 
 #[derive(Copy, Clone)]
@@ -59,7 +61,7 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
                 concat!(env!("CARGO_MANIFEST_DIR"), "/media/wallpaper.data")
             ),
             font,
-            fb: RefCell::new(fb),
+            fb,
             width_px,
             height_px,
             columns,
@@ -68,6 +70,7 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
             cursor_y: 0,
             curr_style: Default::default(),
             cells: VecDeque::new(),
+            back_buffer: VecDeque::with_capacity(width_px * height_px),
         };
         term.clear();
 
@@ -78,18 +81,17 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         self.clear_visual();
 
         self.cells = vec![Default::default(); self.rows * self.columns].into();
+        self.back_buffer = vec![Default::default(); self.width_px * self.height_px].into();
         self.cursor_x = 0;
         self.cursor_y = 0;
     }
 
-    fn clear_visual(&self) {
-        let mut fb = self.fb.borrow_mut();
-
-        let dst_row_len = fb.dimensions().0;
+    fn clear_visual(&mut self) {
+        let dst_row_len = self.fb.dimensions().0;
         let mut src_row = unsafe { self.background.align_to::<u32>().1 };
 
-        for y in 0..fb.dimensions().1 {
-            fb.copy(0, y, unsafe { (&src_row[..dst_row_len]).align_to::<u32>().1 });
+        for y in 0..self.fb.dimensions().1 {
+            self.fb.copy(0, y, unsafe { (&src_row[..dst_row_len]).align_to::<u32>().1 });
             src_row = &src_row[1920..];
         }
     }
@@ -157,9 +159,28 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
             self.cells.push_back(TermCell::default());
         }
 
+        let mid = nr_lines * self.font.glyph_height() as usize * self.width_px;
+        let full_size = self.width_px * self.height_px;
+        self.back_buffer.rotate_left(mid);
+        for i in (full_size - mid)..full_size {
+            self.back_buffer[i] = ColorA::default();
+        }
+
         self.rerender();
 
         self.cursor_y = self.cursor_y.saturating_sub(nr_lines);
+    }
+
+    fn rerender(&mut self) {
+        let mut back = Vec::with_capacity(self.width_px * self.height_px);
+        let (_, bg, _) = unsafe { self.background.align_to() };
+
+        for (i, &px) in self.back_buffer.iter().enumerate() {
+            let bg_color = ColorA::from_bgra_u32(unsafe { *bg.get_unchecked(i) });
+            back.push(px.blend(bg_color).as_bgra_u32());
+        }
+
+        self.fb.copy(0, 0, &back);
     }
 
     fn advance_x(&mut self, by: usize) {
@@ -185,7 +206,7 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     }
 
     fn render_glyph(
-        &self,
+        &mut self,
         c: char,
         x: usize,
         y: usize,
@@ -199,27 +220,41 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
 
         let orig_x = x * self.font.glyph_width() as usize;
         let orig_y = y * self.font.glyph_height() as usize;
-        let nr_cols = self.glyph_size(c) * self.font.glyph_width() as usize;
+        let px_width = self.glyph_size(c) * self.font.glyph_width() as usize;
+        let px_height = self.font.glyph_height() as usize;
+        let mut row_rgb = vec![0u32; px_width];
 
-        let mut fb = self.fb.borrow_mut();
+        let mut i = 0;
+        let mut px_i = orig_y * self.width_px + orig_x;
 
-        for (i, &value) in glyph.data().into_iter().enumerate() {
-            let x = orig_x + i % nr_cols as usize;
-            let y = orig_y + i / nr_cols as usize;
-            let fg_color = Color {
-                r: (value as u16 * style.fg_color.r as u16 / 255) as u8,
-                g: (value as u16 * style.fg_color.g as u16 / 255) as u8,
-                b: (value as u16 * style.fg_color.b as u16 / 255) as u8,
-            };
-            let bg_color = style.bg_color
-                .unwrap_or_else(|| self.bg_color_at(x, y));
-            let color = Color::blend(fg_color, value, bg_color);
-            fb.put(x, y, color);
+        for px_y in 0..px_height {
+            for px_x in 0..px_width {
+                let glyph_alpha = glyph.data()[i];
+                i += 1;
+
+                let fg_color = Color {
+                    r: (glyph_alpha as u16 * style.fg_color.r as u16 / 255) as u8,
+                    g: (glyph_alpha as u16 * style.fg_color.g as u16 / 255) as u8,
+                    b: (glyph_alpha as u16 * style.fg_color.b as u16 / 255) as u8,
+                };
+                self.back_buffer[px_i] = fg_color.with_alpha(glyph_alpha);
+                px_i += 1;
+
+                let bg_color = style.bg_color.unwrap_or_else(|| {
+                    let rgb = &self.background[(px_i * 4)..];
+                    Color { r: rgb[2], g: rgb[1], b: rgb[0] }
+                });
+                let color = Color::blend(fg_color, glyph_alpha, bg_color);
+                row_rgb[px_x] = unsafe { transmute(color.as_bgra()) };
+            }
+
+            self.fb.copy(orig_x, orig_y + px_y, &row_rgb);
+            px_i += self.width_px - px_width;
         }
     }
 
     fn render_emoji(
-        &self,
+        &mut self,
         c: char,
         x: usize,
         y: usize,
@@ -231,20 +266,23 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         let orig_x = x * self.font.glyph_width() as usize;
         let orig_y = y * self.font.glyph_height() as usize;
 
-        let mut fb = self.fb.borrow_mut();
-
         for (i, rgba) in glyph.data().chunks_exact(4).enumerate() {
             let x = orig_x + i % (self.font.glyph_width() as usize * 2);
             let y = orig_y + i / (self.font.glyph_width() as usize * 2) + 2;
-            let fg_color = Color {
+            let px_i = y * self.width_px + x;
+            let fg_color = ColorA {
                 r: rgba[2],
                 g: rgba[1],
                 b: rgba[0],
+                a: rgba[3],
             };
-            let bg_color = style.bg_color
-                .unwrap_or_else(|| self.bg_color_at(x, y));
-            let color = Color::blend(fg_color, rgba[3], bg_color);
-            fb.put(x, y, color);
+            self.back_buffer[px_i] = fg_color;
+            let bg_color = style.bg_color.unwrap_or_else(|| {
+                let rgb = &self.background[(px_i * 4)..];
+                Color { r: rgb[2], g: rgb[1], b: rgb[0] }
+            }).with_alpha(255);
+            let color = fg_color.blend(bg_color);
+            self.fb.put(x, y, color.as_rgb());
         }
     }
 
@@ -252,19 +290,6 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         let rgb = &self.background[((y * 1920 + x) * 4)..];
 
         Color { r: rgb[2], g: rgb[1], b: rgb[0] }
-    }
-
-    fn rerender(&mut self) {
-        self.clear_visual();
-
-        for (i, cell) in self.cells.iter().enumerate() {
-            let y = i / self.columns;
-            let x = i % self.columns;
-
-            if cell.c != '\0' && cell.c != ' ' {
-                self.render_glyph(cell.c, x, y, cell.style);
-            }
-        }
     }
 
     fn cell_at(&mut self, x: usize, y: usize) -> &mut TermCell {

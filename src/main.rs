@@ -59,6 +59,16 @@ fn main() -> ! {
     println!("a\tbb\tccc\tdddd\teeeeee\teeeeeee\teeeeeeee\tf");
     println!("Hello \x1b<fg=ffc66d;bg=000000>WORLD\x1b<!fg;!bg>!");
     println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
+    println!("Nucloid is powered by 🦀 \x1b<fg=f74c00>Rust\x1b<!fg>.");
 
     debug!("Test debug");
     info!("Un petite info");
