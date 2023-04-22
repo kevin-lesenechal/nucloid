@@ -27,7 +27,7 @@ use crate::screen::R;
 pub static mut PHYS_MEM_SIZE: u64 = 0;
 pub static mut LOWMEM_VA_END: VAddr = VAddr(0);
 
-impl const Add<u64> for PAddr {
+impl Add<u64> for PAddr {
     type Output = Self;
 
     fn add(self, rhs: u64) -> Self::Output {
@@ -62,7 +62,7 @@ impl<T> From<*mut T> for VAddr {
     }
 }
 
-impl const Add for VAddr {
+impl Add for VAddr {
     type Output = Self;
 
     fn add(self, rhs: VAddr) -> Self::Output {
@@ -70,7 +70,7 @@ impl const Add for VAddr {
     }
 }
 
-impl const Add<usize> for VAddr {
+impl Add<usize> for VAddr {
     type Output = Self;
 
     fn add(self, rhs: usize) -> Self::Output {
