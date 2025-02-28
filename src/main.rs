@@ -10,49 +10,59 @@
 
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
-
-#![feature(panic_info_message)]
-#![feature(const_mut_refs)]
 #![feature(alloc_error_handler)]
 #![feature(const_trait_impl)]
-#![feature(inline_const)]
 #![feature(const_for)]
-#![feature(const_maybe_uninit_as_mut_ptr)]
 #![feature(iter_advance_by)]
-
 #![allow(unused_unsafe)]
 #![allow(dead_code)]
+// TODO: fix all &mut of statics
+#![allow(static_mut_refs)]
 
 #[cfg(not(test))]
 extern crate alloc;
 
 pub mod arch;
 pub mod driver;
-pub mod mem;
 pub mod logging;
-pub mod sync;
-pub mod screen;
+pub mod mem;
 pub mod panic;
+pub mod screen;
+pub mod sync;
 
 #[macro_use]
 pub mod misc;
 
+mod backtrace;
 pub mod task;
 pub mod ui;
-mod backtrace;
 
 fn main() -> ! {
-    println!("Nucloid v{}", env!("CARGO_PKG_VERSION"));
+    println!("Nucloid\r v{}", env!("CARGO_PKG_VERSION"));
     println!();
     println!("\x1b<fg=cc7832>impl\x1b<!fg> PxFont {{");
-    println!("    \x1b<fg=cc7832>pub fn\x1b<!fg> \x1b<fg=ffc66d>from_data\x1b<!fg>(data: &[\x1b<fg=cc7832>u8\x1b<!fg>]) -> Result<\x1b<fg=cc7832>Self,\x1b<!fg> PxFontError> {{");
-    println!("        \x1b<fg=cc7832>let mut\x1b<!fg> reader = Cursor::\x1b<fg=ffc66d>new\x1b<!fg>(data)\x1b<fg=cc7832>;\x1b<!fg>");
-    println!("        \x1b<fg=cc7832>let\x1b<!fg> header = FileHeader::\x1b<fg=ffc66d>read\x1b<!fg>(&\x1b<fg=cc7832>mut\x1b<!fg> reader)");
-    println!("            .\x1b<fg=ffc66d>map_err\x1b<!fg>(|e| PxFontError::\x1b<fg=9876aa>InvalidHeader\x1b<!fg>(e))\x1b<fg=cc7832>?;\x1b<!fg>");
-    println!("        \x1b<fg=cc7832>let\x1b<!fg> glyph_size = header.width \x1b<fg=cc7832>as\x1b<!fg> usize * header.height \x1b<fg=cc7832>as\x1b<!fg> usize\x1b<fg=cc7832>;\x1b<!fg>");
-    println!("        \x1b<fg=cc7832>let mut\x1b<!fg> chars = HashMap::\x1b<fg=ffc66d>new\x1b<!fg>()\x1b<fg=cc7832>;\x1b<!fg>");
+    println!(
+        "    \x1b<fg=cc7832>pub fn\x1b<!fg> \x1b<fg=ffc66d>from_data\x1b<!fg>(data: &[\x1b<fg=cc7832>u8\x1b<!fg>]) -> Result<\x1b<fg=cc7832>Self,\x1b<!fg> PxFontError> {{"
+    );
+    println!(
+        "        \x1b<fg=cc7832>let mut\x1b<!fg> reader = Cursor::\x1b<fg=ffc66d>new\x1b<!fg>(data)\x1b<fg=cc7832>;\x1b<!fg>"
+    );
+    println!(
+        "        \x1b<fg=cc7832>let\x1b<!fg> header = FileHeader::\x1b<fg=ffc66d>read\x1b<!fg>(&\x1b<fg=cc7832>mut\x1b<!fg> reader)"
+    );
+    println!(
+        "            .\x1b<fg=ffc66d>map_err\x1b<!fg>(|e| PxFontError::\x1b<fg=9876aa>InvalidHeader\x1b<!fg>(e))\x1b<fg=cc7832>?;\x1b<!fg>"
+    );
+    println!(
+        "        \x1b<fg=cc7832>let\x1b<!fg> glyph_size = header.width \x1b<fg=cc7832>as\x1b<!fg> usize * header.height \x1b<fg=cc7832>as\x1b<!fg> usize\x1b<fg=cc7832>;\x1b<!fg>"
+    );
+    println!(
+        "        \x1b<fg=cc7832>let mut\x1b<!fg> chars = HashMap::\x1b<fg=ffc66d>new\x1b<!fg>()\x1b<fg=cc7832>;\x1b<!fg>"
+    );
     println!();
-    println!("Voix ambiguë d’un \x1b<fg=f00>cœur\x1b<!fg> qui, au \x1b<bg=2b2b2b>zéphyr\x1b<!bg>, préfère les jattes de \x1b<fg=0f0>kiwis\x1b<!fg>.");
+    println!(
+        "Voix ambiguë d’un \x1b<fg=f00>cœur\x1b<!fg> qui, au \x1b<bg=2b2b2b>zéphyr\x1b<!bg>, préfère les jattes de \x1b<fg=0f0>kiwis\x1b<!fg>."
+    );
     println!("В чащах юга жил бы цитрус? Да, но фальшивый экземпляр!");
     println!("Ξεσκεπάζω την ψυχοφθόρα σας βδελυγμία.");
     println!("Ça fera 1 035,00 €, ou £20.");

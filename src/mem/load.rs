@@ -12,7 +12,7 @@ use core::ops::Range;
 
 use crate::mem::VAddr;
 
-extern "C" {
+unsafe extern "C" {
     /// The virtual address at which the kernel image, as loaded by the
     /// bootloader, resides; the address is guaranteed to be page-aligned.
     /// The value is passed as a symbol, i.e. a memory address, what this

@@ -8,25 +8,29 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use crate::arch;
+use crate::arch::mem::LOWMEM_VA_START;
+use crate::arch::sync::{pop_critical_region, push_critical_region};
+use crate::arch::x86::driver::ps2;
+use crate::arch::x86::driver::serial::{
+    COM1_IOPORT, ParityMode, SerialDevice, StopBits,
+};
+use crate::arch::x86::{gdt, irq};
+use crate::mem::{LOWMEM_VA_END, PAddr, PHYS_MEM_SIZE};
+use crate::{debug, info, main, notice};
 use alloc::boxed::Box;
 use core::mem;
-use crate::arch::x86::driver::serial::{SerialDevice, COM1_IOPORT, ParityMode,
-                                       StopBits};
-use crate::arch::x86::{gdt, irq};
-use crate::{debug, info, main, notice};
-use crate::mem::{PAddr, PHYS_MEM_SIZE, LOWMEM_VA_END};
-use crate::arch::sync::{push_critical_region, pop_critical_region};
-use crate::arch::mem::LOWMEM_VA_START;
-use crate::arch;
-use crate::arch::x86::driver::ps2;
+use multiboot2::BootInformation;
 
-use crate::screen::R;
-use crate::arch::x86::mem::{lowmem_va_size, physical_memory_size};
 use crate::arch::x86::driver::vesa::VesaFramebuffer;
 use crate::arch::x86::export::logging::LOGGER_SERIAL;
+use crate::arch::x86::mem::{lowmem_va_size, physical_memory_size};
 use crate::driver::keyboard;
 use crate::logging::{DEFAULT_LOGGER, reset_logger};
-use crate::mem::load::{kernel_image, kernel_rodata_segment, kernel_text_segment};
+use crate::mem::load::{
+    kernel_image, kernel_rodata_segment, kernel_text_segment,
+};
+use crate::screen::R;
 use crate::ui::kterm::{KERNEL_TERMINAL, TerminalLogger};
 use crate::ui::term::Terminal;
 
@@ -61,23 +65,34 @@ use crate::ui::term::Terminal;
 ///
 /// Finally, we call the kernel's `main` function to start the architecture-
 /// agnostic code.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
     // We are not yet ready to handle interruptions: we don't even have an IDT!
     push_critical_region();
 
-    LOGGER_SERIAL = Some(unsafe { SerialDevice::new(
-        COM1_IOPORT, 115200, ParityMode::None, 8, StopBits::One
-    ).expect("Couldn't initialize serial device") });
-    *DEFAULT_LOGGER.lock() = LOGGER_SERIAL.as_mut().unwrap();
+    unsafe {
+        LOGGER_SERIAL = Some(unsafe {
+            SerialDevice::new(
+                COM1_IOPORT,
+                115200,
+                ParityMode::None,
+                8,
+                StopBits::One,
+            )
+            .expect("Couldn't initialize serial device")
+        });
+        *DEFAULT_LOGGER.lock() = LOGGER_SERIAL.as_mut().unwrap();
+    }
 
-    let mbi = multiboot2::load(
-        multiboot_info_pa.into_vaddr().0
-    ).unwrap();
+    let mbi = unsafe {
+        BootInformation::load(multiboot_info_pa.into_vaddr().0 as *const _)
+    }
+    .unwrap();
 
     notice!("Nucloid v{}", env!("CARGO_PKG_VERSION"));
 
-    let mem_map = mbi.memory_map_tag()
+    let mem_map = mbi
+        .memory_map_tag()
         .expect("No memory map provided by the bootloader");
 
     unsafe {
@@ -85,28 +100,39 @@ pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
         LOWMEM_VA_END = LOWMEM_VA_START + lowmem_va_size(&mem_map);
     }
 
-    debug!("phys_mem_size = 0x{:x}, va_size = 0x{:x}",
-           R(PHYS_MEM_SIZE), R(LOWMEM_VA_END));
+    unsafe {
+        debug!(
+            "phys_mem_size = 0x{:x}, va_size = 0x{:x}",
+            R(PHYS_MEM_SIZE),
+            R(LOWMEM_VA_END)
+        );
+    }
     debug!("Kernel image:   {:#?}", kernel_image());
     debug!("Text segment:   {:#?}", kernel_text_segment());
     debug!("Rodata segment: {:#?}", kernel_rodata_segment());
 
     info!("Setting up GDT...");
-    gdt::setup_table();
-    gdt::load_kernel_selectors();
+    unsafe {
+        gdt::setup_table();
+        gdt::load_kernel_selectors();
+    }
 
     info!("Setting up interrupts...");
-    irq::setup();
+    unsafe {
+        irq::setup();
+    }
 
-    let fb_info = mbi.framebuffer_tag().expect("No framebuffer");
-    let fb_addr = PAddr(fb_info.address);
-    let fb_width = fb_info.width;
-    let fb_height = fb_info.height;
-    let fb_pitch = fb_info.pitch;
-    let fb_bpp = fb_info.bpp;
+    let fb_info = mbi.framebuffer_tag().expect("No framebuffer").unwrap();
+    let fb_addr = PAddr(fb_info.address());
+    let fb_width = fb_info.width();
+    let fb_height = fb_info.height();
+    let fb_pitch = fb_info.pitch();
+    let fb_bpp = fb_info.bpp();
 
     info!("Setting up memory management...");
-    arch::x86::mem::boot_setup(&mem_map);
+    unsafe {
+        arch::x86::mem::boot_setup(&mem_map);
+    }
     mem::forget(mbi); // FIXME: Multiboot info is invalidated
 
     // We can now activate and handle interruptions safely.
@@ -115,18 +141,23 @@ pub unsafe extern "C" fn arch_init(multiboot_info_pa: PAddr) -> ! {
     let fb_bsize = fb_pitch as usize * fb_height as usize;
     let fb_vaddr = fb_addr.into_vaddr();
 
-    let fb = VesaFramebuffer::new(
-        fb_vaddr.0 as _,
-        fb_width as usize,
-        fb_height as usize,
-        fb_pitch as usize,
-        fb_bpp
-    );
+    let fb = unsafe {
+        VesaFramebuffer::new(
+            fb_vaddr.0 as _,
+            fb_width as usize,
+            fb_height as usize,
+            fb_pitch as usize,
+            fb_bpp,
+        )
+    };
 
-    debug!("fb ({fb_width}×{fb_height}) paddr = {:?}, vaddr = {:?}, size = {}",
-           fb_addr, fb_vaddr, fb_bsize);
+    debug!(
+        "fb ({fb_width}×{fb_height}) paddr = {:?}, vaddr = {:?}, size = {}",
+        fb_addr, fb_vaddr, fb_bsize
+    );
     *KERNEL_TERMINAL.lock() = Some(Terminal::create(fb));
-    let term_logger = Box::leak(Box::new(TerminalLogger::new(reset_logger())));
+    let term_logger =
+        Box::leak(Box::new(TerminalLogger::new(unsafe { reset_logger() })));
     *DEFAULT_LOGGER.lock() = term_logger;
 
     keyboard::init();

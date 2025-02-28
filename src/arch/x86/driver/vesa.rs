@@ -8,7 +8,7 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-use crate::driver::screen::{FramebufferScreen, Color};
+use crate::driver::screen::{Color, FramebufferScreen};
 
 pub struct VesaFramebuffer {
     mem: &'static mut [u32],
@@ -19,21 +19,25 @@ pub struct VesaFramebuffer {
 }
 
 impl VesaFramebuffer {
-    pub unsafe fn new(buffer: *mut u32,
-                      width: usize,
-                      height: usize,
-                      pitch: usize,
-                      bpp: u8) -> Self {
+    pub unsafe fn new(
+        buffer: *mut u32,
+        width: usize,
+        height: usize,
+        pitch: usize,
+        bpp: u8,
+    ) -> Self {
         let buff_size = pitch * height;
 
         assert_eq!(bpp, 32);
 
         VesaFramebuffer {
-            mem: core::slice::from_raw_parts_mut(buffer, buff_size >> 2),
+            mem: unsafe {
+                core::slice::from_raw_parts_mut(buffer, buff_size >> 2)
+            },
             width,
             height,
             pitch,
-            bpp
+            bpp,
         }
     }
 }
@@ -44,9 +48,8 @@ impl FramebufferScreen for VesaFramebuffer {
     }
 
     fn put(&mut self, x: usize, y: usize, color: Color) {
-        let px = (color.r as u32) << 16
-                 | (color.g as u32) << 8
-                 | (color.b as u32);
+        let px =
+            (color.r as u32) << 16 | (color.g as u32) << 8 | (color.b as u32);
         let index = (self.pitch >> 2) * y + x;
         self.mem[index] = px;
     }

@@ -101,7 +101,11 @@ impl ColorA {
 
     #[inline]
     pub fn as_rgb(self) -> Color {
-        Color { r: self.r, g: self.g, b: self.b }
+        Color {
+            r: self.r,
+            g: self.g,
+            b: self.b,
+        }
     }
 }
 

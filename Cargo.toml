@@ -12,7 +12,7 @@
 name = "nucloid"
 version = "0.1.0"
 authors = ["Kévin Lesénéchal <kevin.lesenechal@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -24,19 +24,19 @@ edition = "2021"
 overflow-checks = true
 
 [build-dependencies]
-cc = "1.0.79"
+cc = "1.2.15"
 
 [dev-dependencies]
-ctor = "0.1.21"
+ctor = "0.4.0"
 
 [dependencies]
 thiserror-no-std = "2.0"
-arrayvec = { version = "0.7", default-features = false, features = [] }
-num-integer = { version = "0.1.44", default-features = false }
-hashbrown = "0.13.2"
-binrw = { version = "0.11.1", default-features = false }
-gimli = { version = "0.27.2", default-features = false, features = ["read"] }
+arrayvec = { version = "0.7.6", default-features = false, features = [] }
+num-integer = { version = "0.1.46", default-features = false }
+hashbrown = "0.15.2"
+binrw = { version = "0.14.1", default-features = false }
+gimli = { version = "0.31.1", default-features = false, features = ["read"] }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 x86 = "0.52"
-multiboot2 = "0.14"
+multiboot2 = "0.23.1"

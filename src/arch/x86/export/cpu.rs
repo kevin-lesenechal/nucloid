@@ -10,7 +10,7 @@
 
 use core::arch::asm;
 use core::fmt;
-use core::fmt::{Formatter, Display};
+use core::fmt::{Display, Formatter};
 
 use crate::arch::x86::driver::ps2;
 use crate::driver::vga::VgaScreen;
@@ -113,31 +113,74 @@ impl MachineState {
     }
 
     pub fn print(&self, vga: &mut impl VgaScreen) -> fmt::Result {
-        writeln!(vga, "rax{:016x} rbx{:016x} rcx{:016x} rdx{:016x}",
-                 self.rax, self.rbx, self.rcx, self.rdx)?;
-        writeln!(vga, "rdi{:016x} rsi{:016x} rbp{:016x} rsp{:016x}",
-                 self.rdi, self.rsi, self.rbp, self.rsp)?;
-        writeln!(vga, "r8 {:016x} r9 {:016x} r10{:016x} r11{:016x}",
-                 self.r8, self.r9, self.r10, self.r11)?;
-        writeln!(vga, "r12{:016x} r13{:016x} r14{:016x} r15{:016x}",
-                 self.r12, self.r13, self.r14, self.r15)?;
-        writeln!(vga, "rip={:016x}   cs={:04x}   ss={:04x}   ds={:04x}   es={:04x}   fs={:04x}   gs={:04x}",
-                 self.rip, self.cs, self.ss, self.ds, self.es, self.fs, self.gs)
+        writeln!(
+            vga,
+            "rax{:016x} rbx{:016x} rcx{:016x} rdx{:016x}",
+            self.rax, self.rbx, self.rcx, self.rdx
+        )?;
+        writeln!(
+            vga,
+            "rdi{:016x} rsi{:016x} rbp{:016x} rsp{:016x}",
+            self.rdi, self.rsi, self.rbp, self.rsp
+        )?;
+        writeln!(
+            vga,
+            "r8 {:016x} r9 {:016x} r10{:016x} r11{:016x}",
+            self.r8, self.r9, self.r10, self.r11
+        )?;
+        writeln!(
+            vga,
+            "r12{:016x} r13{:016x} r14{:016x} r15{:016x}",
+            self.r12, self.r13, self.r14, self.r15
+        )?;
+        writeln!(
+            vga,
+            "rip={:016x}   cs={:04x}   ss={:04x}   ds={:04x}   es={:04x}   fs={:04x}   gs={:04x}",
+            self.rip, self.cs, self.ss, self.ds, self.es, self.fs, self.gs
+        )
     }
 
     pub fn print_term(&self) {
         use crate::screen::R;
 
-        println!("\x1b<fg=fff>rax=\x1b<!fg>{:x}   \x1b<fg=fff>rbx=\x1b<!fg>{:x}   \x1b<fg=fff>rcx=\x1b<!fg>{:x}   \x1b<fg=fff>rdx=\x1b<!fg>{:x}",
-                 R(self.rax), R(self.rbx), R(self.rcx), R(self.rdx));
-        println!("\x1b<fg=fff>rdi=\x1b<!fg>{:x}   \x1b<fg=fff>rsi=\x1b<!fg>{:x}   \x1b<fg=fff>rbp=\x1b<!fg>{:x}   \x1b<fg=fff>rsp=\x1b<!fg>{:x}",
-                 R(self.rdi), R(self.rsi), R(self.rbp), R(self.rsp));
-        println!(" \x1b<fg=fff>r8=\x1b<!fg>{:x}    \x1b<fg=fff>r9=\x1b<!fg>{:x}   \x1b<fg=fff>r10=\x1b<!fg>{:x}   \x1b<fg=fff>r11=\x1b<!fg>{:x}",
-                 R(self.r8), R(self.r9), R(self.r10), R(self.r11));
-        println!("\x1b<fg=fff>r12=\x1b<!fg>{:x}   \x1b<fg=fff>r13=\x1b<!fg>{:x}   \x1b<fg=fff>r14=\x1b<!fg>{:x}   \x1b<fg=fff>r15=\x1b<!fg>{:x}",
-                 R(self.r12), R(self.r13), R(self.r14), R(self.r15));
-        println!("\x1b<fg=fff>rip=\x1b<!fg>{:016x}         \x1b<fg=fff>cs=\x1b<!fg>{:04x}   \x1b<fg=fff>ss=\x1b<!fg>{:04x}   \x1b<fg=fff>ds=\x1b<!fg>{:04x}   \x1b<fg=fff>es=\x1b<!fg>{:04x}   \x1b<fg=fff>fs=\x1b<!fg>{:04x}   \x1b<fg=fff>gs=\x1b<!fg>{:04x}",
-                 R(self.rip), self.cs, self.ss, self.ds, self.es, self.fs, self.gs);
+        println!(
+            "\x1b<fg=fff>rax=\x1b<!fg>{:x}   \x1b<fg=fff>rbx=\x1b<!fg>{:x}   \x1b<fg=fff>rcx=\x1b<!fg>{:x}   \x1b<fg=fff>rdx=\x1b<!fg>{:x}",
+            R(self.rax),
+            R(self.rbx),
+            R(self.rcx),
+            R(self.rdx)
+        );
+        println!(
+            "\x1b<fg=fff>rdi=\x1b<!fg>{:x}   \x1b<fg=fff>rsi=\x1b<!fg>{:x}   \x1b<fg=fff>rbp=\x1b<!fg>{:x}   \x1b<fg=fff>rsp=\x1b<!fg>{:x}",
+            R(self.rdi),
+            R(self.rsi),
+            R(self.rbp),
+            R(self.rsp)
+        );
+        println!(
+            " \x1b<fg=fff>r8=\x1b<!fg>{:x}    \x1b<fg=fff>r9=\x1b<!fg>{:x}   \x1b<fg=fff>r10=\x1b<!fg>{:x}   \x1b<fg=fff>r11=\x1b<!fg>{:x}",
+            R(self.r8),
+            R(self.r9),
+            R(self.r10),
+            R(self.r11)
+        );
+        println!(
+            "\x1b<fg=fff>r12=\x1b<!fg>{:x}   \x1b<fg=fff>r13=\x1b<!fg>{:x}   \x1b<fg=fff>r14=\x1b<!fg>{:x}   \x1b<fg=fff>r15=\x1b<!fg>{:x}",
+            R(self.r12),
+            R(self.r13),
+            R(self.r14),
+            R(self.r15)
+        );
+        println!(
+            "\x1b<fg=fff>rip=\x1b<!fg>{:016x}         \x1b<fg=fff>cs=\x1b<!fg>{:04x}   \x1b<fg=fff>ss=\x1b<!fg>{:04x}   \x1b<fg=fff>ds=\x1b<!fg>{:04x}   \x1b<fg=fff>es=\x1b<!fg>{:04x}   \x1b<fg=fff>fs=\x1b<!fg>{:04x}   \x1b<fg=fff>gs=\x1b<!fg>{:04x}",
+            R(self.rip),
+            self.cs,
+            self.ss,
+            self.ds,
+            self.es,
+            self.fs,
+            self.gs
+        );
     }
 }
 
@@ -145,21 +188,50 @@ impl Display for MachineState {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         use crate::screen::R;
 
-        writeln!(f, "rax={:x}  rbx={:x}  rcx={:x}  rdx={:x}",
-                 R(self.rax), R(self.rbx), R(self.rcx), R(self.rdx))?;
-        writeln!(f, "rdi={:x}  rsi={:x}  rbp={:x}  rsp={:x}",
-                 R(self.rdi), R(self.rsi), R(self.rbp), R(self.rsp))?;
-        writeln!(f, " r8={:x}   r9={:x}  r10={:x}  r11={:x}",
-                 R(self.r8), R(self.r9), R(self.r10), R(self.r11))?;
-        writeln!(f, "r12={:x}  r13={:x}  r14={:x}  r15={:x}",
-                 R(self.r12), R(self.r13), R(self.r14), R(self.r15))?;
-        writeln!(f, "rip={:016x}   cs={:04x}   ss={:04x}   ds={:04x}   es={:04x}   fs={:04x}   gs={:04x}",
-                 self.rip, self.cs, self.ss, self.ds, self.es, self.fs, self.gs)
+        writeln!(
+            f,
+            "rax={:x}  rbx={:x}  rcx={:x}  rdx={:x}",
+            R(self.rax),
+            R(self.rbx),
+            R(self.rcx),
+            R(self.rdx)
+        )?;
+        writeln!(
+            f,
+            "rdi={:x}  rsi={:x}  rbp={:x}  rsp={:x}",
+            R(self.rdi),
+            R(self.rsi),
+            R(self.rbp),
+            R(self.rsp)
+        )?;
+        writeln!(
+            f,
+            " r8={:x}   r9={:x}  r10={:x}  r11={:x}",
+            R(self.r8),
+            R(self.r9),
+            R(self.r10),
+            R(self.r11)
+        )?;
+        writeln!(
+            f,
+            "r12={:x}  r13={:x}  r14={:x}  r15={:x}",
+            R(self.r12),
+            R(self.r13),
+            R(self.r14),
+            R(self.r15)
+        )?;
+        writeln!(
+            f,
+            "rip={:016x}   cs={:04x}   ss={:04x}   ds={:04x}   es={:04x}   fs={:04x}   gs={:04x}",
+            self.rip, self.cs, self.ss, self.ds, self.es, self.fs, self.gs
+        )
     }
 }
 
 pub fn halt() {
-    unsafe { x86::halt(); }
+    unsafe {
+        x86::halt();
+    }
 }
 
 pub fn perm_halt() -> ! {

@@ -8,16 +8,16 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use arrayvec::ArrayVec;
 use core::mem::MaybeUninit;
 use core::ptr::copy_nonoverlapping;
-use arrayvec::ArrayVec;
 use multiboot2::MemoryMapTag;
 
+use crate::arch::mem::{LOWMEM_SIZE, LOWMEM_VA_START};
 use crate::arch::x86::mem::paging::setup_kernel_paging;
-use crate::arch::mem::{LOWMEM_VA_START, LOWMEM_SIZE};
+use crate::debug;
 use crate::mem::frame::{AllocatorBuilder, FRAME_ALLOCATOR};
 use crate::mem::{PAddr, PHYS_MEM_SIZE};
-use crate::debug;
 use crate::misc::BinSize;
 
 pub mod paging;
@@ -25,7 +25,7 @@ pub mod paging;
 pub fn lowmem_va_size(mem_maps: &MemoryMapTag) -> usize {
     let mut lowmem_size = 0;
 
-    for area in mem_maps.all_memory_areas() {
+    for area in mem_maps.memory_areas() {
         if area.start_address() >= LOWMEM_SIZE as u64 {
             break;
         } else if area.end_address() > LOWMEM_SIZE as u64 {
@@ -41,7 +41,12 @@ pub fn lowmem_va_size(mem_maps: &MemoryMapTag) -> usize {
 }
 
 pub fn physical_memory_size(mem_maps: &MemoryMapTag) -> u64 {
-    mem_maps.all_memory_areas().map(|area| area.end_address()).max().unwrap()
+    mem_maps
+        .memory_areas()
+        .into_iter()
+        .map(|area| area.end_address())
+        .max()
+        .unwrap()
 }
 
 pub unsafe fn boot_setup(mem_maps: &MemoryMapTag) {
@@ -50,18 +55,23 @@ pub unsafe fn boot_setup(mem_maps: &MemoryMapTag) {
     let mem_maps = copy_mbi_mem_areas(mem_maps);
 
     for area in mem_maps.iter() {
-        debug!("[{}] {:?} -> {:?}    {:#10x} ({})",
-               area.typ, PAddr(area.base_addr),
-               PAddr(area.base_addr + area.length),
-               area.length, BinSize(area.length));
+        debug!(
+            "[{}] {:?} -> {:?}    {:#10x} ({})",
+            area.typ,
+            PAddr(area.base_addr),
+            PAddr(area.base_addr + area.length),
+            area.length,
+            BinSize(area.length)
+        );
     }
 
-    let curr_heap = setup_kernel_paging();
+    let curr_heap = unsafe { setup_kernel_paging() };
 
     assert_eq!(curr_heap.0 & 0xfff, 0);
     let boot_used_bytes = (curr_heap - LOWMEM_VA_START).0 as u64;
 
-    let mut allocator_b = AllocatorBuilder::new(curr_heap, PHYS_MEM_SIZE);
+    let mut allocator_b =
+        unsafe { AllocatorBuilder::new(curr_heap, PHYS_MEM_SIZE) };
 
     for area in mem_maps {
         let paddr = PAddr(area.base_addr);
@@ -73,31 +83,35 @@ pub unsafe fn boot_setup(mem_maps: &MemoryMapTag) {
             bsize &= !0xfff;
         }
 
-        match area.typ {
-            1 => {
-                allocator_b.declare_unused_ram(paddr, bsize);
-            },
-            2 | 3 => {
-                allocator_b.declare_reserved(paddr, bsize);
-            },
-            _ => {
-                allocator_b.declare_unusable(paddr, bsize);
+        unsafe {
+            match area.typ {
+                1 => {
+                    allocator_b.declare_unused_ram(paddr, bsize);
+                }
+                2 | 3 => {
+                    allocator_b.declare_reserved(paddr, bsize);
+                }
+                _ => {
+                    allocator_b.declare_unusable(paddr, bsize);
+                }
             }
         }
     }
 
-    allocator_b.declare_allocated_ram(PAddr(0), boot_used_bytes);
+    unsafe {
+        allocator_b.declare_allocated_ram(PAddr(0), boot_used_bytes);
+    }
 
     {
         let mut allocator = FRAME_ALLOCATOR.lock();
         assert!(allocator.is_none());
-        *allocator = Some(allocator_b.build());
+        *allocator = Some(unsafe { allocator_b.build() });
     }
 }
 
 fn copy_mbi_mem_areas(mem_maps: &MemoryMapTag) -> ArrayVec<MbiMemArea, 16> {
     let mut mem_areas: ArrayVec<MbiMemArea, 16> = ArrayVec::new();
-    for area in mem_maps.all_memory_areas() {
+    for area in mem_maps.memory_areas() {
         let mut area_copy = MaybeUninit::<MbiMemArea>::uninit();
         unsafe {
             copy_nonoverlapping(

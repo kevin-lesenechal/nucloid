@@ -8,9 +8,9 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-pub mod vga;
-pub mod pic8259;
 pub mod apic;
-pub mod vesa;
-pub mod serial;
+pub mod pic8259;
 pub mod ps2;
+pub mod serial;
+pub mod vesa;
+pub mod vga;

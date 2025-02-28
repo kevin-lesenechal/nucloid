@@ -15,8 +15,8 @@ use crate::logging::{Logger, Severity};
 use crate::sync::Spinlock;
 use crate::ui::term::Terminal;
 
-pub static KERNEL_TERMINAL: Spinlock<Option<Terminal<VesaFramebuffer>>>
-    = Spinlock::new(None);
+pub static KERNEL_TERMINAL: Spinlock<Option<Terminal<VesaFramebuffer>>> =
+    Spinlock::new(None);
 
 pub struct TerminalLogger {
     serial: &'static mut (dyn Logger + Send),
@@ -24,9 +24,7 @@ pub struct TerminalLogger {
 
 impl TerminalLogger {
     pub fn new(serial: &'static mut (dyn Logger + Send)) -> Self {
-        Self {
-            serial
-        }
+        Self { serial }
     }
 }
 
@@ -60,6 +58,13 @@ pub fn _print(args: Arguments) {
     }
 }
 
+pub fn _fprint(args: Arguments) {
+    let mut kterm = KERNEL_TERMINAL.lock();
+    if let Some(ref mut kterm) = *kterm {
+        let _ = kterm.write_fmt(args);
+    }
+}
+
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
@@ -72,6 +77,21 @@ macro_rules! println {
     () => { $crate::print!("\n") };
     ($($arg:tt)*) => {
         $crate::print!("{}\n", format_args!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! fprint {
+    ($($arg:tt)*) => {
+        $crate::ui::kterm::_fprint(format_args!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! fprintln {
+    () => { $crate::print!("\n") };
+    ($($arg:tt)*) => {
+        $crate::fprint!("{}\n", format_args!($($arg)*))
     };
 }
 

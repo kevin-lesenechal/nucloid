@@ -34,12 +34,11 @@ impl<B: AllocatorBackend> BumpAllocator<B> {
     pub fn alloc(&mut self, bsize: usize) -> Option<NonNull<()>> {
         let mut block = unsafe {
             NonNull::new_unchecked(
-                align_up(self.heap_top.as_ptr() as usize, 16) as *mut ()
+                align_up(self.heap_top.as_ptr() as usize, 16) as *mut (),
             )
         };
-        let bytes_left =
-            align_up(self.heap_top.as_ptr() as usize, 4096)
-                .saturating_sub(block.as_ptr() as usize);
+        let bytes_left = align_up(self.heap_top.as_ptr() as usize, 4096)
+            .saturating_sub(block.as_ptr() as usize);
 
         if bytes_left < bsize {
             let nr_pages = align_up(bsize, 4096) >> 12;
@@ -47,14 +46,15 @@ impl<B: AllocatorBackend> BumpAllocator<B> {
         }
 
         self.heap_top = unsafe {
-            NonNull::new_unchecked((block.as_ptr() as *mut u8).add(bsize) as *mut ())
+            NonNull::new_unchecked(
+                (block.as_ptr() as *mut u8).add(bsize) as *mut ()
+            )
         };
 
         Some(block)
     }
 
-    pub unsafe fn dealloc(&mut self, _ptr: *mut ()) {
-    }
+    pub unsafe fn dealloc(&mut self, _ptr: *mut ()) {}
 
     pub unsafe fn realloc(
         &mut self,

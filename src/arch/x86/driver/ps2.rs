@@ -39,9 +39,7 @@ pub struct PS2Keyboard {
 
 impl PS2Keyboard {
     pub fn new() -> Self {
-        Self {
-            is_e0_state: false,
-        }
+        Self { is_e0_state: false }
     }
 
     pub fn on_irq(&mut self) {
@@ -219,9 +217,7 @@ fn read_conf_byte(offset: u8) -> u8 {
 
     send_cmd(CMD_READ_CONF + offset);
     wait_for_output();
-    unsafe {
-        inb(DATA_PORT)
-    }
+    unsafe { inb(DATA_PORT) }
 }
 
 fn write_conf_byte(offset: u8, byte: u8) {

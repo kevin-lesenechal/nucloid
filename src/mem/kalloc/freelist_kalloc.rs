@@ -8,11 +8,11 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use crate::info;
 use core::cmp::min;
 use core::marker::PhantomData;
-use core::ptr::{self, copy_nonoverlapping, NonNull};
 use core::mem::{align_of, size_of};
-use crate::info;
+use core::ptr::{self, NonNull, copy_nonoverlapping};
 
 use crate::misc::align_up;
 
@@ -74,9 +74,7 @@ impl Block {
 
     fn as_user_ptr(&self) -> NonNull<u8> {
         unsafe {
-            NonNull::new_unchecked(
-                (self as *const Block).add(1) as *mut u8
-            )
+            NonNull::new_unchecked((self as *const Block).add(1) as *mut u8)
         }
     }
 
@@ -117,21 +115,25 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
     pub unsafe fn realloc(
         &mut self,
         ptr: *mut u8,
-        bsize: usize
+        bsize: usize,
     ) -> Option<NonNull<u8>> {
         if ptr.is_null() {
-            return self.alloc(bsize);
+            return unsafe { self.alloc(bsize) };
         }
 
         let block = unsafe { &mut *(ptr as *mut Block).sub(1) };
-        assert_eq!(block.magic, BLOCK_MAGIC,
-                   "kalloc: realloc(): invalid block magic, tried to realloc an invalid address");
+        assert_eq!(
+            block.magic, BLOCK_MAGIC,
+            "kalloc: realloc(): invalid block magic, tried to realloc an invalid address"
+        );
         assert!(!block.is_free(), "kalloc: realloc(): use-after-free");
 
-        let new = self.alloc(bsize)?;
+        let new = unsafe { self.alloc(bsize)? };
         let copy_size = min(block.bsize, bsize);
 
-        copy_nonoverlapping(ptr, new.as_ptr(), copy_size);
+        unsafe {
+            copy_nonoverlapping(ptr, new.as_ptr(), copy_size);
+        }
 
         Some(new)
     }
@@ -142,16 +144,21 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
         }
 
         let block = unsafe { &mut *(ptr as *mut Block).sub(1) };
-        assert_eq!(block.magic, BLOCK_MAGIC,
-                   "kalloc: dealloc(): invalid block magic, tried to free an invalid address");
+        assert_eq!(
+            block.magic, BLOCK_MAGIC,
+            "kalloc: dealloc(): invalid block magic, tried to free an invalid address"
+        );
         assert!(!block.is_free(), "kalloc: dealloc(): double-free");
 
         let mut has_merged = false;
 
         // First, try to find a free block immediately after to extend into.
-        if let Some(mut direct_next_free)
-            = self.direct_next_free_block(block.into()) {
-            self.free_merge_to_left(block, unsafe { direct_next_free.as_mut() });
+        if let Some(mut direct_next_free) =
+            self.direct_next_free_block(block.into())
+        {
+            self.free_merge_to_left(block, unsafe {
+                direct_next_free.as_mut()
+            });
 
             has_merged = true;
         }
@@ -196,9 +203,11 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
 
         while let Some(block) = curr_block {
             let block = unsafe { block.as_ref() };
-            assert_eq!(block.magic, BLOCK_MAGIC,
-                       "block at {:?} has invalid magic value: {:?}",
-                       block as *const Block, block);
+            assert_eq!(
+                block.magic, BLOCK_MAGIC,
+                "block at {:?} has invalid magic value: {:?}",
+                block as *const Block, block
+            );
             assert_eq!(block.next, prev);
             assert!(block.bsize > 0);
             assert_eq!(block.bsize % align_of::<Block>(), 0);
@@ -211,9 +220,11 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
 
         while let Some(block) = curr_block {
             let block = unsafe { block.as_ref() };
-            assert_eq!(block.magic, BLOCK_MAGIC,
-                       "block at {:?} has invalid magic value: {:?}",
-                       block as *const Block, block);
+            assert_eq!(
+                block.magic, BLOCK_MAGIC,
+                "block at {:?} has invalid magic value: {:?}",
+                block as *const Block, block
+            );
             assert!(block.bsize > 0);
             assert_eq!(block.bsize % align_of::<Block>(), 0);
             assert!(block.is_free());
@@ -272,14 +283,9 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
         self.alloc_free_block(bsize)
     }
 
-    fn find_free_block(
-        &mut self,
-        req_bsize: usize,
-    ) -> Option<NonNull<Block>> {
+    fn find_free_block(&mut self, req_bsize: usize) -> Option<NonNull<Block>> {
         self.iter_free()
-            .find(|&block|
-                unsafe { block.as_ref() }.bsize >= req_bsize
-            )
+            .find(|&block| unsafe { block.as_ref() }.bsize >= req_bsize)
     }
 
     fn last_free_block(&mut self) -> Option<NonNull<Block>> {
@@ -300,8 +306,8 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
         let ext_bsize = align_up(user_size + size_of::<Block>(), 4096);
 
         let block = unsafe {
-            Backend::new_pages(ext_bsize >> 12)?
-                .as_mut() as *mut () as *mut Block
+            Backend::new_pages(ext_bsize >> 12)?.as_mut() as *mut ()
+                as *mut Block
         };
 
         if let Some(mut last_free) = self.last_free_block() {
@@ -341,16 +347,14 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
         Some(block_ptr)
     }
 
-    fn cut_free_block(
-        &mut self,
-        mut left_block: NonNull<Block>,
-        bsize: usize,
-    ) {
+    fn cut_free_block(&mut self, mut left_block: NonNull<Block>, bsize: usize) {
         let user_size = align_up(bsize, align_of::<Block>());
 
         let left_block = unsafe { left_block.as_mut() };
-        assert!(user_size <= left_block.bsize,
-                "the requested size exceeds the available space");
+        assert!(
+            user_size <= left_block.bsize,
+            "the requested size exceeds the available space"
+        );
 
         let ext_bsize_left = left_block.bsize - user_size;
         if ext_bsize_left < size_of::<Block>() + MIN_BLOCK_SIZE {
@@ -379,7 +383,8 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
         left_block.next_free = Some(right_block.into());
         left_block.bsize -= ext_bsize_left;
 
-        let last_block = self.last_block
+        let last_block = self
+            .last_block
             .expect("there must be a last block if we are cutting one");
         if last_block.as_ptr() == left_block as *mut Block {
             self.last_block = Some(right_block.into());
@@ -404,7 +409,7 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
     /// no free block before.
     fn prev_free_block(
         &mut self,
-        block: NonNull<Block>
+        block: NonNull<Block>,
     ) -> Option<NonNull<Block>> {
         let first_free = self.free_list?;
 
@@ -430,7 +435,8 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
         let next = unsafe { block.next?.as_ref() };
 
         if next.is_free()
-            && next as *const Block as *const u8 == block.end_addr() {
+            && next as *const Block as *const u8 == block.end_addr()
+        {
             Some(next.into())
         } else {
             None
@@ -455,12 +461,14 @@ impl<Backend: AllocatorBackend> FreelistAllocator<Backend> {
         if let Some(last_block) = self.last_block {
             for block in unsafe { last_block.as_ref() }.iter_prev() {
                 let block = unsafe { block.as_ref() };
-                println!("{}  {:?}  {:>8}  next={:?}  next_free={:?}",
+                println!(
+                    "{}  {:?}  {:>8}  next={:?}  next_free={:?}",
                     if block.is_free() { "FREE" } else { "USED" },
                     VAddr::from(block as *const Block),
                     block.bsize,
                     block.next,
-                    block.next_free);
+                    block.next_free
+                );
             }
         }
     }
@@ -486,8 +494,10 @@ impl<'a> Iterator for FreeBlockIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(ptr) = self.curr_block {
             let block = unsafe { &*ptr.as_ptr() };
-            debug_assert_eq!(block.magic, BLOCK_MAGIC,
-                             "found corrupted block while iterating");
+            debug_assert_eq!(
+                block.magic, BLOCK_MAGIC,
+                "found corrupted block while iterating"
+            );
             debug_assert!(block.is_free(), "found non-free block in free list");
             self.curr_block = block.next_free;
             Some(ptr)
@@ -517,9 +527,11 @@ impl<'a> Iterator for BlockPrevIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(ptr) = self.curr_block {
             let block = unsafe { ptr.as_ref() };
-            debug_assert_eq!(block.magic, BLOCK_MAGIC,
-                             "found corrupted block ({:?}) while iterating",
-                             ptr);
+            debug_assert_eq!(
+                block.magic, BLOCK_MAGIC,
+                "found corrupted block ({:?}) while iterating",
+                ptr
+            );
             self.curr_block = block.prev;
             Some(ptr)
         } else {
@@ -530,13 +542,13 @@ impl<'a> Iterator for BlockPrevIter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use core::ptr::NonNull;
-    use core::slice;
     use crate::arch::test::export::mem::{MEMORY, MEMORY_MUTEX, reset_memory};
     use crate::arch::test::frame::reset_frame_allocator;
     use crate::mem::kalloc::FrameAllocatorBackend;
-    use crate::mem::kalloc::freelist_kalloc::{Block};
+    use crate::mem::kalloc::freelist_kalloc::Block;
     use crate::mem::kalloc::freelist_kalloc::FreelistAllocator;
+    use core::ptr::NonNull;
+    use core::slice;
 
     type KernelAllocator = FreelistAllocator<FrameAllocatorBackend>;
 
@@ -667,16 +679,16 @@ mod tests {
 
         let mut alloc = KernelAllocator::new();
         unsafe {
-            do_alloc(&mut alloc, 256, 1*BSZ + 0*256);
-            let mid1 = do_alloc(&mut alloc, 256, 2*BSZ + 1*256);
-            let mid2 = do_alloc(&mut alloc, 256, 3*BSZ + 2*256);
-            do_alloc(&mut alloc, 256, 4*BSZ + 3*256);
+            do_alloc(&mut alloc, 256, 1 * BSZ + 0 * 256);
+            let mid1 = do_alloc(&mut alloc, 256, 2 * BSZ + 1 * 256);
+            let mid2 = do_alloc(&mut alloc, 256, 3 * BSZ + 2 * 256);
+            do_alloc(&mut alloc, 256, 4 * BSZ + 3 * 256);
             assert_eq!(alloc.count_blocks(), 5);
 
             alloc.dealloc(mid1.as_ptr());
             alloc.dealloc(mid2.as_ptr());
 
-            do_alloc(&mut alloc, 512 + BSZ, 2*BSZ + 1*256);
+            do_alloc(&mut alloc, 512 + BSZ, 2 * BSZ + 1 * 256);
             assert_eq!(alloc.count_blocks(), 4);
         }
     }
@@ -689,16 +701,16 @@ mod tests {
 
         let mut alloc = KernelAllocator::new();
         unsafe {
-            do_alloc(&mut alloc, 256, 1*BSZ + 0*256);
-            let mid1 = do_alloc(&mut alloc, 256, 2*BSZ + 1*256);
-            let mid2 = do_alloc(&mut alloc, 256, 3*BSZ + 2*256);
-            do_alloc(&mut alloc, 256, 4*BSZ + 3*256);
+            do_alloc(&mut alloc, 256, 1 * BSZ + 0 * 256);
+            let mid1 = do_alloc(&mut alloc, 256, 2 * BSZ + 1 * 256);
+            let mid2 = do_alloc(&mut alloc, 256, 3 * BSZ + 2 * 256);
+            do_alloc(&mut alloc, 256, 4 * BSZ + 3 * 256);
             assert_eq!(alloc.count_blocks(), 5);
 
             alloc.dealloc(mid2.as_ptr());
             alloc.dealloc(mid1.as_ptr());
 
-            do_alloc(&mut alloc, 512 + BSZ, 2*BSZ + 1*256);
+            do_alloc(&mut alloc, 512 + BSZ, 2 * BSZ + 1 * 256);
             assert_eq!(alloc.count_blocks(), 4);
         }
     }
@@ -711,11 +723,11 @@ mod tests {
 
         let mut alloc = KernelAllocator::new();
         unsafe {
-            do_alloc(&mut alloc, 256, 1*BSZ + 0*256);
-            let mid1 = do_alloc(&mut alloc, 256, 2*BSZ + 1*256);
-            let mid2 = do_alloc(&mut alloc, 256, 3*BSZ + 2*256);
-            let mid3 = do_alloc(&mut alloc, 256, 4*BSZ + 3*256);
-            do_alloc(&mut alloc, 256, 5*BSZ + 4*256);
+            do_alloc(&mut alloc, 256, 1 * BSZ + 0 * 256);
+            let mid1 = do_alloc(&mut alloc, 256, 2 * BSZ + 1 * 256);
+            let mid2 = do_alloc(&mut alloc, 256, 3 * BSZ + 2 * 256);
+            let mid3 = do_alloc(&mut alloc, 256, 4 * BSZ + 3 * 256);
+            do_alloc(&mut alloc, 256, 5 * BSZ + 4 * 256);
             assert_eq!(alloc.count_blocks(), 6);
 
             alloc.self_check();
@@ -726,7 +738,7 @@ mod tests {
             alloc.dealloc(mid2.as_ptr());
             alloc.self_check();
 
-            do_alloc(&mut alloc, 3*256 + 2*BSZ, 2*BSZ + 1*256);
+            do_alloc(&mut alloc, 3 * 256 + 2 * BSZ, 2 * BSZ + 1 * 256);
             assert_eq!(alloc.count_blocks(), 4);
         }
     }
@@ -804,14 +816,12 @@ mod tests {
     fn do_alloc(
         alloc: &mut KernelAllocator,
         size: usize,
-        exp_addr: usize
+        exp_addr: usize,
     ) -> NonNull<u8> {
         unsafe {
-            let addr = alloc.alloc(size)
-                .expect("couldn't allocate");
+            let addr = alloc.alloc(size).expect("couldn't allocate");
             alloc.self_check();
-            assert_eq!(addr.as_ptr(),
-                       MEMORY.0.as_mut_ptr().add(exp_addr));
+            assert_eq!(addr.as_ptr(), MEMORY.0.as_mut_ptr().add(exp_addr));
             addr
         }
     }

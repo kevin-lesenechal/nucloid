@@ -63,7 +63,7 @@ impl Iterator for Backtrace {
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     static __kernel_eh_frame_hdr: u8;
     static __kernel_eh_frame_hdr_end: u8;
     static __kernel_eh_frame: u8;
@@ -91,17 +91,25 @@ struct EhInfo {
 impl EhInfo {
     fn new() -> Self {
         let hdr = unsafe { addr_of!(__kernel_eh_frame_hdr) };
-        let hdr_len = (unsafe { addr_of!(__kernel_eh_frame_hdr_end) } as usize) - (hdr as usize);
+        let hdr_len = (unsafe { addr_of!(__kernel_eh_frame_hdr_end) } as usize)
+            - (hdr as usize);
         let eh_frame = unsafe { addr_of!(__kernel_eh_frame) };
-        let eh_frame_len = (unsafe { addr_of!(__kernel_eh_frame_end) } as usize) - (eh_frame as usize);
+        let eh_frame_len = (unsafe { addr_of!(__kernel_eh_frame_end) }
+            as usize)
+            - (eh_frame as usize);
 
         let mut base_addrs = BaseAddresses::default();
         base_addrs = base_addrs.set_eh_frame_hdr(hdr as u64);
 
-        let hdr = Box::leak(Box::new(EhFrameHdr::new( // TODO: remove Box
-            unsafe { slice::from_raw_parts(hdr, hdr_len) },
-            LittleEndian,
-        ).parse(&base_addrs, size_of::<usize>() as u8).unwrap()));
+        let hdr = Box::leak(Box::new(
+            EhFrameHdr::new(
+                // TODO: remove Box
+                unsafe { slice::from_raw_parts(hdr, hdr_len) },
+                LittleEndian,
+            )
+            .parse(&base_addrs, size_of::<usize>() as u8)
+            .unwrap(),
+        ));
 
         base_addrs = base_addrs.set_eh_frame(eh_frame as u64);
 
@@ -121,7 +129,8 @@ impl EhInfo {
 
 struct Unwinder {
     eh_info: EhInfo,
-    unwind_ctx: UnwindContext<EndianSlice<'static, LittleEndian>>,
+    //unwind_ctx: UnwindContext<EndianSlice<'static, LittleEndian>>,
+    unwind_ctx: UnwindContext<usize>,
     regs: RegisterSet,
     cfa: u64,
     is_first: bool,
@@ -137,10 +146,7 @@ impl Debug for Unwinder {
 }
 
 impl Unwinder {
-    fn new(
-        eh_info: EhInfo,
-        register_set: RegisterSet,
-    ) -> Self {
+    fn new(eh_info: EhInfo, register_set: RegisterSet) -> Self {
         Self {
             eh_info,
             unwind_ctx: UnwindContext::new(), // TODO: no alloc
@@ -158,33 +164,37 @@ impl Unwinder {
             return Ok(Some(pc));
         }
 
-        let row = self.eh_info.hdr_table.unwind_info_for_address(
-            &self.eh_info.eh_frame,
-            &self.eh_info.base_addrs,
-            &mut self.unwind_ctx,
-            pc,
-            |section, bases, offset| section.cie_from_offset(bases, offset),
-        ).map_err(|_| UnwinderError::NoUnwindInfo)?;
+        let row = self
+            .eh_info
+            .hdr_table
+            .unwind_info_for_address(
+                &self.eh_info.eh_frame,
+                &self.eh_info.base_addrs,
+                &mut self.unwind_ctx,
+                pc,
+                |section, bases, offset| section.cie_from_offset(bases, offset),
+            )
+            .map_err(|_| UnwinderError::NoUnwindInfo)?;
 
         match row.cfa() {
             CfaRule::RegisterAndOffset { register, offset } => {
-                let reg_val = self.regs.get(*register)
+                let reg_val = self
+                    .regs
+                    .get(*register)
                     .ok_or(UnwinderError::CfaRuleUnknownRegister(*register))?;
                 self.cfa = (reg_val as i64 + offset) as u64;
-            },
+            }
             _ => return Err(UnwinderError::UnsupportedCfaRule),
         }
 
         for reg in RegisterSet::iter() {
             match row.register(reg) {
-                RegisterRule::Undefined => {
-                    self.regs.undef(reg)
-                },
+                RegisterRule::Undefined => self.regs.undef(reg),
                 RegisterRule::SameValue => (),
                 RegisterRule::Offset(offset) => {
                     let ptr = (self.cfa as i64 + offset) as u64 as *const usize;
                     self.regs.set(reg, unsafe { ptr.read() } as u64)?;
-                },
+                }
                 _ => return Err(UnwinderError::UnimplementedRegisterRule),
             }
         }
@@ -199,9 +209,9 @@ impl Unwinder {
 
 #[cfg(target_arch = "x86_64")]
 mod arch {
-    use gimli::{Register, X86_64};
     use crate::arch::cpu::MachineState;
     use crate::backtrace::UnwinderError;
+    use gimli::{Register, X86_64};
 
     #[derive(Debug, Default)]
     pub(super) struct RegisterSet {
@@ -230,7 +240,11 @@ mod arch {
             }
         }
 
-        pub(super) fn set(&mut self, reg: Register, val: u64) -> Result<(), UnwinderError> {
+        pub(super) fn set(
+            &mut self,
+            reg: Register,
+            val: u64,
+        ) -> Result<(), UnwinderError> {
             *match reg {
                 X86_64::RSP => &mut self.rsp,
                 X86_64::RBP => &mut self.rbp,
@@ -266,7 +280,7 @@ mod arch {
             self.rsp = Some(val);
         }
 
-        pub(super) fn iter() -> impl Iterator<Item=Register> {
+        pub(super) fn iter() -> impl Iterator<Item = Register> {
             [X86_64::RSP, X86_64::RBP, X86_64::RA].into_iter()
         }
     }

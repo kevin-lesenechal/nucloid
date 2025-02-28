@@ -30,9 +30,7 @@ pub struct Apic {
 
 impl Apic {
     pub unsafe fn new(registers: *mut u32) -> Apic {
-        Apic {
-            regs: registers,
-        }
+        Apic { regs: registers }
     }
 
     pub fn eoi(&self) {

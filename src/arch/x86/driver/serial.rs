@@ -8,9 +8,9 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-use x86::io::{outb, inb};
 use core::fmt;
 use core::fmt::Write;
+use x86::io::{inb, outb};
 
 use crate::logging::{Logger, Severity};
 
@@ -19,16 +19,16 @@ pub const COM2_IOPORT: u16 = 0x02f8;
 pub const COM3_IOPORT: u16 = 0x03e8;
 pub const COM4_IOPORT: u16 = 0x02e8;
 
-const REG_DATA: u16         = 0; // DLAB = 0
-const REG_DIVISOR_LSB: u16  = 0; // DLAB = 1
-const REG_IRQ_ENABLE: u16   = 1; // DLAB = 0
-const REG_DIVISOR_MSB: u16  = 1; // DLAB = 1
-const REG_IRQ_ID: u16       = 2;
-const REG_LINE_CTRL: u16    = 3;
-const REG_MODEM_CTRL: u16   = 4;
-const REG_LINE_STATUS: u16  = 5;
+const REG_DATA: u16 = 0; // DLAB = 0
+const REG_DIVISOR_LSB: u16 = 0; // DLAB = 1
+const REG_IRQ_ENABLE: u16 = 1; // DLAB = 0
+const REG_DIVISOR_MSB: u16 = 1; // DLAB = 1
+const REG_IRQ_ID: u16 = 2;
+const REG_LINE_CTRL: u16 = 3;
+const REG_MODEM_CTRL: u16 = 4;
+const REG_LINE_STATUS: u16 = 5;
 const REG_MODEM_STATUS: u16 = 6;
-const REG_SCRATCH: u16      = 7;
+const REG_SCRATCH: u16 = 7;
 
 pub struct SerialDevice {
     ioport_base: u16,
@@ -75,27 +75,27 @@ impl SerialDevice {
     fn init(&mut self) -> Result<(), &'static str> {
         let divisor: u16 = match self.baud_rate {
             115_200 => 1,
-            57_600  => 2,
-            38_400  => 3,
-            19_200  => 6,
-            9600    => 12,
-            4800    => 24,
-            2400    => 48,
-            1200    => 96,
-            600     => 192,
-            300     => 384,
-            220     => 524,
-            110     => 1047,
-            50      => 2304,
+            57_600 => 2,
+            38_400 => 3,
+            19_200 => 6,
+            9600 => 12,
+            4800 => 24,
+            2400 => 48,
+            1200 => 96,
+            600 => 192,
+            300 => 384,
+            220 => 524,
+            110 => 1047,
+            50 => 2304,
             _ => return Err("Unsupported baud rate, no divisor available"),
         };
 
         let parity_bits = match &self.parity {
-            ParityMode::None    => 0b000,
-            ParityMode::Odd     => 0b001,
-            ParityMode::Even    => 0b011,
-            ParityMode::Mark    => 0b101,
-            ParityMode::Space   => 0b111,
+            ParityMode::None => 0b000,
+            ParityMode::Odd => 0b001,
+            ParityMode::Even => 0b011,
+            ParityMode::Mark => 0b101,
+            ParityMode::Space => 0b111,
         };
         let stop_bits = match &self.stop_bits {
             StopBits::One => 0,
@@ -128,9 +128,7 @@ impl SerialDevice {
     pub fn read_blocking(&self) -> u8 {
         while !self.may_read() {}
 
-        unsafe {
-            inb(self.ioport_base + REG_DATA)
-        }
+        unsafe { inb(self.ioport_base + REG_DATA) }
     }
 
     pub fn may_write(&self) -> bool {

@@ -10,9 +10,9 @@
 
 use core::fmt;
 
-use core::fmt::{Formatter, Write};
 use crate::arch::logging::LOGGER_SERIAL;
 use crate::mem::VAddr;
+use core::fmt::{Formatter, Write};
 
 pub fn _print(args: fmt::Arguments) {
     let screen = unsafe { LOGGER_SERIAL.as_mut().unwrap() };
@@ -39,10 +39,12 @@ impl fmt::LowerHex for R<u64> {
 
 impl fmt::LowerHex for R<usize> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        #[cfg(target_pointer_width = "32")] {
+        #[cfg(target_pointer_width = "32")]
+        {
             R(self.0 as u32).fmt(f)
         }
-        #[cfg(target_pointer_width = "64")] {
+        #[cfg(target_pointer_width = "64")]
+        {
             R(self.0 as u64).fmt(f)
         }
     }

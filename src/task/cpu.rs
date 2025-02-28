@@ -8,8 +8,8 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use crate::arch::sync::{pop_critical_region, push_critical_region};
 use core::sync::atomic::AtomicUsize;
-use crate::arch::sync::{push_critical_region, pop_critical_region};
 
 pub const MAX_CPUS: usize = 32;
 pub static NR_CPUS: AtomicUsize = AtomicUsize::new(0);

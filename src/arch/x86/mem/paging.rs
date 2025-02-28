@@ -8,13 +8,15 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-use crate::mem::{PAddr, get_lowmem_va_end, VAddr};
-use crate::sync::Spinlock;
 use crate::arch::mem::LOWMEM_VA_START;
 use crate::debug;
-use crate::mem::load::{kernel_image, kernel_rodata_segment, kernel_text_segment};
+use crate::mem::load::{
+    kernel_image, kernel_rodata_segment, kernel_text_segment,
+};
+use crate::mem::{PAddr, VAddr, get_lowmem_va_end};
+use crate::sync::Spinlock;
 
-extern "C" {
+unsafe extern "C" {
     #[link_name = "boot_pml4"]
     static mut _BOOT_PML4: PML4;
 
@@ -44,25 +46,25 @@ pub struct PD(pub [PDEntry; 512]);
 pub struct PT(pub [PTEntry; 512]);
 
 impl PML4 {
-    pub fn iter_mut(&mut self) -> impl Iterator<Item=&mut PML4Entry> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut PML4Entry> {
         self.0.iter_mut()
     }
 }
 
 impl PDPT {
-    pub fn iter_mut(&mut self) -> impl Iterator<Item=&mut PDPTEntry> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut PDPTEntry> {
         self.0.iter_mut()
     }
 }
 
 impl PD {
-    pub fn iter_mut(&mut self) -> impl Iterator<Item=&mut PDEntry> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut PDEntry> {
         self.0.iter_mut()
     }
 }
 
 impl PT {
-    pub fn iter_mut(&mut self) -> impl Iterator<Item=&mut PTEntry> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut PTEntry> {
         self.0.iter_mut()
     }
 }
@@ -83,12 +85,11 @@ pub struct PDEntry(pub u64);
 #[derive(Debug, Copy, Clone)]
 pub struct PTEntry(pub u64);
 
-static GLOBAL_PML4: Spinlock<&mut PML4> = Spinlock::new(
-    unsafe { &mut _BOOT_PML4 }
-);
+static GLOBAL_PML4: Spinlock<&mut PML4> =
+    Spinlock::new(unsafe { &mut _BOOT_PML4 });
 
-pub(in crate::arch::x86) static KERNEL_PDPT: Spinlock<&mut PDPT>
-    = Spinlock::new(unsafe { &mut _BOOT_PDPT256 });
+pub(in crate::arch::x86) static KERNEL_PDPT: Spinlock<&mut PDPT> =
+    Spinlock::new(unsafe { &mut _BOOT_PDPT256 });
 
 #[repr(C)]
 pub struct TableEntry(u64);
@@ -470,7 +471,8 @@ pub unsafe fn setup_kernel_paging() -> VAddr {
 fn walk_pd(pd: &mut PD, heap_addr: &mut VAddr, vaddr: &mut VAddr) {
     let text_segment = kernel_text_segment();
     let rodata_segment = kernel_rodata_segment();
-    let stack_guard = VAddr(unsafe { &boot_stack_bottom_guard as *const u8 as usize });
+    let stack_guard =
+        VAddr(unsafe { &boot_stack_bottom_guard as *const u8 as usize });
 
     for pd_entry in pd.iter_mut() {
         if !pd_entry.is_present() {
@@ -518,7 +520,7 @@ fn make_pd(pdpt_entry: &mut PDPTEntry, heap_addr: &mut VAddr) {
 
     pdpt_entry.set_addr(
         PAddr::from_lowmem_vaddr(*heap_addr)
-            .expect("Virtual address must be in low memory")
+            .expect("Virtual address must be in low memory"),
     );
     pdpt_entry.set_present(true);
     pdpt_entry.set_writable(true);
@@ -542,7 +544,7 @@ fn make_pt(pd_entry: &mut PDEntry, heap_addr: &mut VAddr) {
 
     pd_entry.set_addr(
         PAddr::from_lowmem_vaddr(*heap_addr)
-            .expect("Virtual address must be in low memory")
+            .expect("Virtual address must be in low memory"),
     );
     pd_entry.set_present(true);
     pd_entry.set_writable(true);
@@ -550,7 +552,9 @@ fn make_pt(pd_entry: &mut PDEntry, heap_addr: &mut VAddr) {
     *heap_addr += 4096;
 
     // TODO: make more efficient by not trashing TLB at each new PT
-    unsafe { reload_tlb(); }
+    unsafe {
+        reload_tlb();
+    }
 }
 
 pub unsafe fn reload_tlb() {

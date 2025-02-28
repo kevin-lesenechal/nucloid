@@ -8,7 +8,7 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+pub mod keymap;
+pub mod kterm;
 pub mod pxfont;
 pub mod term;
-pub mod kterm;
-pub mod keymap;

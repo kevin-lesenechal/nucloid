@@ -18,7 +18,11 @@ use core::str::FromStr;
 use crate::driver::screen::{Color, ColorA, FramebufferScreen};
 use crate::ui::pxfont::PxFont;
 
-const DEFAULT_FG_COLOR: Color = Color { r: 169, g: 183, b: 198 };
+const DEFAULT_FG_COLOR: Color = Color {
+    r: 169,
+    g: 183,
+    b: 198,
+};
 
 pub struct Terminal<Fb> {
     background: &'static [u8],
@@ -50,14 +54,17 @@ struct TermCell {
 impl<Fb: FramebufferScreen> Terminal<Fb> {
     pub fn create(fb: Fb) -> Self {
         let (width_px, height_px) = (fb.dimensions().0, fb.dimensions().1);
-        let font = PxFont::from_data(include_bytes!(
-            concat!(env!("CARGO_MANIFEST_DIR"), "/media/iosevka.pxfont")
-        )).unwrap();
+        let font = PxFont::from_data(include_bytes!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/media/iosevka.pxfont"
+        )))
+        .unwrap();
         let columns = width_px / font.glyph_width() as usize;
         let rows = height_px / font.glyph_height() as usize;
 
         let mut term = Self {
-            background: include_bytes_align_as!(u32,
+            background: include_bytes_align_as!(
+                u32,
                 concat!(env!("CARGO_MANIFEST_DIR"), "/media/wallpaper.data")
             ),
             font,
@@ -81,7 +88,8 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         self.clear_visual();
 
         self.cells = vec![Default::default(); self.rows * self.columns].into();
-        self.back_buffer = vec![Default::default(); self.width_px * self.height_px].into();
+        self.back_buffer =
+            vec![Default::default(); self.width_px * self.height_px].into();
         self.cursor_x = 0;
         self.cursor_y = 0;
     }
@@ -91,7 +99,9 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         let mut src_row = unsafe { self.background.align_to::<u32>().1 };
 
         for y in 0..self.fb.dimensions().1 {
-            self.fb.copy(0, y, unsafe { (&src_row[..dst_row_len]).align_to::<u32>().1 });
+            self.fb.copy(0, y, unsafe {
+                (&src_row[..dst_row_len]).align_to::<u32>().1
+            });
             src_row = &src_row[1920..];
         }
     }
@@ -99,10 +109,10 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     pub fn write(&mut self, s: &str) {
         let mut it = s.char_indices();
 
-        while let Some((i, c)) = it.next() {
-            if c == '\x1b' {
+        while let Some((_i, c)) = it.next() {
+            /*if c == '\x1b' {
                 let _ = it.advance_by(self.handle_escape(&s[(i + 1)..]));
-            }
+            }*/
             self.putc(c);
         }
     }
@@ -112,39 +122,36 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
             '\n' => {
                 self.cursor_x = 0;
                 self.advance_y();
-            },
+            }
             '\t' => self.advance_x(8 - (self.cursor_x & 0b111)),
-            '\r' => self.cursor_x = 0,
-            '\x00'..='\x1f' | '\x7f' => return,
-            mut c => {
-                if c == '\u{a0}' || c == '\u{202f}' {
-                    c = ' ';
-                }
-
-                let glyph_size = self.glyph_size(c);
-                if self.cursor_x + glyph_size >= self.columns {
-                    self.cursor_x = 0;
-                    self.advance_y();
-                }
-                self.render_glyph(
-                    c,
-                    self.cursor_x,
-                    self.cursor_y,
-                    self.curr_style,
-                );
-                *self.cell_at(self.cursor_x, self.cursor_y) = TermCell {
-                    c,
-                    style: self.curr_style,
-                };
-                for i in (self.cursor_x + 1)..(self.cursor_x + glyph_size) {
-                    *self.cell_at(i, self.cursor_y) = TermCell {
-                        c: '\0',
-                        style: self.curr_style,
-                    };
-                }
-                self.advance_x(glyph_size);
-            },
+            ' ' | '\u{a0}' | '\u{202f}' => self.advance_x(1),
+            //'\x1b' => return, // TODO: remove
+            '\x00'..='\x1f' => {
+                self.write_char((0x2400 + c as u32).try_into().unwrap())
+            }
+            '\x7f' => self.write_char('\u{2421}'),
+            c => self.write_char(c),
         }
+    }
+
+    fn write_char(&mut self, c: char) {
+        let glyph_size = self.glyph_size(c);
+        if self.cursor_x + glyph_size >= self.columns {
+            self.cursor_x = 0;
+            self.advance_y();
+        }
+        self.render_glyph(c, self.cursor_x, self.cursor_y, self.curr_style);
+        *self.cell_at(self.cursor_x, self.cursor_y) = TermCell {
+            c,
+            style: self.curr_style,
+        };
+        for i in (self.cursor_x + 1)..(self.cursor_x + glyph_size) {
+            *self.cell_at(i, self.cursor_y) = TermCell {
+                c: '\0',
+                style: self.curr_style,
+            };
+        }
+        self.advance_x(glyph_size);
     }
 
     pub fn scroll_up(&mut self, mut nr_lines: usize) {
@@ -176,7 +183,8 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         let (_, bg, _) = unsafe { self.background.align_to() };
 
         for (i, &px) in self.back_buffer.iter().enumerate() {
-            let bg_color = ColorA::from_bgra_u32(unsafe { *bg.get_unchecked(i) });
+            let bg_color =
+                ColorA::from_bgra_u32(unsafe { *bg.get_unchecked(i) });
             back.push(px.blend(bg_color).as_bgra_u32());
         }
 
@@ -200,19 +208,16 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     }
 
     fn glyph_size(&self, c: char) -> usize {
-        self.font.get_glyph(c)
+        self.font
+            .get_glyph(c)
             .unwrap_or(self.font.replacement_glyph())
             .nr_columns()
     }
 
-    fn render_glyph(
-        &mut self,
-        c: char,
-        x: usize,
-        y: usize,
-        style: GlyphStyle,
-    ) {
-        let glyph = self.font.get_glyph(c)
+    fn render_glyph(&mut self, c: char, x: usize, y: usize, style: GlyphStyle) {
+        let glyph = self
+            .font
+            .get_glyph(c)
             .unwrap_or(self.font.replacement_glyph());
         if glyph.is_rgba() {
             return self.render_emoji(c, x, y, style);
@@ -233,16 +238,23 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
                 i += 1;
 
                 let fg_color = Color {
-                    r: (glyph_alpha as u16 * style.fg_color.r as u16 / 255) as u8,
-                    g: (glyph_alpha as u16 * style.fg_color.g as u16 / 255) as u8,
-                    b: (glyph_alpha as u16 * style.fg_color.b as u16 / 255) as u8,
+                    r: (glyph_alpha as u16 * style.fg_color.r as u16 / 255)
+                        as u8,
+                    g: (glyph_alpha as u16 * style.fg_color.g as u16 / 255)
+                        as u8,
+                    b: (glyph_alpha as u16 * style.fg_color.b as u16 / 255)
+                        as u8,
                 };
                 self.back_buffer[px_i] = fg_color.with_alpha(glyph_alpha);
                 px_i += 1;
 
                 let bg_color = style.bg_color.unwrap_or_else(|| {
                     let rgb = &self.background[(px_i * 4)..];
-                    Color { r: rgb[2], g: rgb[1], b: rgb[0] }
+                    Color {
+                        r: rgb[2],
+                        g: rgb[1],
+                        b: rgb[0],
+                    }
                 });
                 let color = Color::blend(fg_color, glyph_alpha, bg_color);
                 row_rgb[px_x] = unsafe { transmute(color.as_bgra()) };
@@ -253,14 +265,10 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
         }
     }
 
-    fn render_emoji(
-        &mut self,
-        c: char,
-        x: usize,
-        y: usize,
-        style: GlyphStyle,
-    ) {
-        let glyph = self.font.get_glyph(c)
+    fn render_emoji(&mut self, c: char, x: usize, y: usize, style: GlyphStyle) {
+        let glyph = self
+            .font
+            .get_glyph(c)
             .unwrap_or(self.font.replacement_glyph());
 
         let orig_x = x * self.font.glyph_width() as usize;
@@ -277,10 +285,17 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
                 a: rgba[3],
             };
             self.back_buffer[px_i] = fg_color;
-            let bg_color = style.bg_color.unwrap_or_else(|| {
-                let rgb = &self.background[(px_i * 4)..];
-                Color { r: rgb[2], g: rgb[1], b: rgb[0] }
-            }).with_alpha(255);
+            let bg_color = style
+                .bg_color
+                .unwrap_or_else(|| {
+                    let rgb = &self.background[(px_i * 4)..];
+                    Color {
+                        r: rgb[2],
+                        g: rgb[1],
+                        b: rgb[0],
+                    }
+                })
+                .with_alpha(255);
             let color = fg_color.blend(bg_color);
             self.fb.put(x, y, color.as_rgb());
         }
@@ -289,7 +304,11 @@ impl<Fb: FramebufferScreen> Terminal<Fb> {
     fn bg_color_at(&self, x: usize, y: usize) -> Color {
         let rgb = &self.background[((y * 1920 + x) * 4)..];
 
-        Color { r: rgb[2], g: rgb[1], b: rgb[0] }
+        Color {
+            r: rgb[2],
+            g: rgb[1],
+            b: rgb[0],
+        }
     }
 
     fn cell_at(&mut self, x: usize, y: usize) -> &mut TermCell {
@@ -363,17 +382,16 @@ impl FromStr for EscapeCommand {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (cmd, arg) = s.split_once('=')
+        let (cmd, arg) = s
+            .split_once('=')
             .map(|(k, v)| (k, Some(v)))
             .unwrap_or((s, None));
 
         use EscapeCommand::*;
         Ok(match (cmd, arg) {
-            ("fg", Some(arg)) =>
-                SetFgColor(arg.parse().map_err(|_| ())?),
+            ("fg", Some(arg)) => SetFgColor(arg.parse().map_err(|_| ())?),
             ("!fg", None) => ClearFgColor,
-            ("bg", Some(arg)) =>
-                SetBgColor(arg.parse().map_err(|_| ())?),
+            ("bg", Some(arg)) => SetBgColor(arg.parse().map_err(|_| ())?),
             ("!bg", None) => ClearBgColor,
             ("nl", None) => Newline,
             _ => return Err(()),
@@ -388,10 +406,7 @@ pub struct EscapeIterator<'a> {
 
 impl<'a> EscapeIterator<'a> {
     pub fn new(s: &'a str) -> Self {
-        Self {
-            s: Some(s),
-            off: 0,
-        }
+        Self { s: Some(s), off: 0 }
     }
 
     #[inline]

@@ -10,10 +10,10 @@
 
 use core::str::FromStr;
 
-use crate::{arch, print, println, warning};
 use crate::sync::Spinlock;
 use crate::ui::keymap::{Keymap, KeymapState};
 use crate::ui::kterm::KERNEL_TERMINAL;
+use crate::{arch, print, println, warning};
 
 #[derive(Debug)]
 pub enum KeyEvent {
@@ -143,60 +143,56 @@ impl FromStr for Key {
 impl Deadkey {
     pub fn apply(&self, c: char) -> Option<char> {
         Some(match self {
-            Deadkey::Circumflex => {
-                match c {
-                    'a' => 'â',
-                    'z' => 'ẑ',
-                    'e' => 'ê',
-                    'y' => 'ŷ',
-                    'u' => 'û',
-                    'i' => 'î',
-                    'o' => 'ô',
-                    's' => 'ŝ',
-                    'g' => 'ĝ',
-                    'h' => 'ĥ',
-                    'j' => 'ĵ',
-                    'w' => 'ŵ',
-                    'c' => 'ĉ',
-                    'A' => 'Â',
-                    'Z' => 'Ẑ',
-                    'E' => 'Ê',
-                    'Y' => 'Ŷ',
-                    'U' => 'Û',
-                    'I' => 'Î',
-                    'O' => 'Ô',
-                    'S' => 'Ŝ',
-                    'G' => 'Ĝ',
-                    'H' => 'Ĥ',
-                    'J' => 'Ĵ',
-                    'W' => 'Ŵ',
-                    'C' => 'Ĉ',
-                    _ => return None,
-                }
+            Deadkey::Circumflex => match c {
+                'a' => 'â',
+                'z' => 'ẑ',
+                'e' => 'ê',
+                'y' => 'ŷ',
+                'u' => 'û',
+                'i' => 'î',
+                'o' => 'ô',
+                's' => 'ŝ',
+                'g' => 'ĝ',
+                'h' => 'ĥ',
+                'j' => 'ĵ',
+                'w' => 'ŵ',
+                'c' => 'ĉ',
+                'A' => 'Â',
+                'Z' => 'Ẑ',
+                'E' => 'Ê',
+                'Y' => 'Ŷ',
+                'U' => 'Û',
+                'I' => 'Î',
+                'O' => 'Ô',
+                'S' => 'Ŝ',
+                'G' => 'Ĝ',
+                'H' => 'Ĥ',
+                'J' => 'Ĵ',
+                'W' => 'Ŵ',
+                'C' => 'Ĉ',
+                _ => return None,
             },
-            Deadkey::Diaeresis => {
-                match c {
-                    'a' => 'ä',
-                    'e' => 'ë',
-                    't' => 'ẗ',
-                    'y' => 'ÿ',
-                    'u' => 'ü',
-                    'i' => 'ï',
-                    'o' => 'ö',
-                    'h' => 'ḧ',
-                    'w' => 'ẅ',
-                    'x' => 'ẍ',
-                    'A' => 'Ä',
-                    'E' => 'Ë',
-                    'Y' => 'Ÿ',
-                    'U' => 'Ü',
-                    'I' => 'Ï',
-                    'O' => 'Ö',
-                    'H' => 'Ḧ',
-                    'W' => 'Ẅ',
-                    'X' => 'Ẍ',
-                    _ => return None,
-                }
+            Deadkey::Diaeresis => match c {
+                'a' => 'ä',
+                'e' => 'ë',
+                't' => 'ẗ',
+                'y' => 'ÿ',
+                'u' => 'ü',
+                'i' => 'ï',
+                'o' => 'ö',
+                'h' => 'ḧ',
+                'w' => 'ẅ',
+                'x' => 'ẍ',
+                'A' => 'Ä',
+                'E' => 'Ë',
+                'Y' => 'Ÿ',
+                'U' => 'Ü',
+                'I' => 'Ï',
+                'O' => 'Ö',
+                'H' => 'Ḧ',
+                'W' => 'Ẅ',
+                'X' => 'Ẍ',
+                _ => return None,
             },
             // TODO: Implement the rest
             _ => return None,
@@ -265,9 +261,13 @@ impl Keyboard {
             lmeta: false,
             rmeta: false,
             capslock: false,
-            keymap: KeymapState::new(Keymap::from_file(include_bytes!(
-                concat!(env!("CARGO_MANIFEST_DIR"), "/media/us.keymap")
-            )).unwrap()),
+            keymap: KeymapState::new(
+                Keymap::from_file(include_bytes!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/media/fr.keymap"
+                )))
+                .unwrap(),
+            ),
         }
     }
 
@@ -285,54 +285,54 @@ impl Keyboard {
 
     pub fn on_key_event(&mut self, event: KeyEvent) {
         match event {
-            KeyEvent::Pressed(key) =>
-                match key {
-                    Key::Space => print!(" "),
-                    Key::Enter | Key::KeypadEnter => println!(),
-                    Key::ScrollLock => arch::cpu::reset(),
+            KeyEvent::Pressed(key) => match key {
+                Key::Space => print!(" "),
+                Key::Enter | Key::KeypadEnter => println!(),
+                Key::ScrollLock => arch::cpu::reset(),
 
-                    Key::LeftShift => self.lshift = true,
-                    Key::RightShift => self.rshift = true,
-                    Key::LeftCtrl => self.lctrl = true,
-                    Key::RightCtrl => self.rctrl = true,
-                    Key::Alt => self.alt = true,
-                    Key::AltGr => self.altgr = true,
-                    Key::LeftMeta => self.lmeta = true,
-                    Key::RightMeta => self.rmeta = true,
-                    Key::CapsLock => self.capslock = !self.capslock, // TODO: LED
+                Key::LeftShift => self.lshift = true,
+                Key::RightShift => self.rshift = true,
+                Key::LeftCtrl => self.lctrl = true,
+                Key::RightCtrl => self.rctrl = true,
+                Key::Alt => self.alt = true,
+                Key::AltGr => self.altgr = true,
+                Key::LeftMeta => self.lmeta = true,
+                Key::RightMeta => self.rmeta = true,
+                Key::CapsLock => self.capslock = !self.capslock, // TODO: LED
 
-                    _ => {
-                        if self.has_ctrl() {
-                            match key {
-                                Key::Letter('L') => KERNEL_TERMINAL.lock().as_mut().unwrap().clear(),
-                                _ => (),
+                _ => {
+                    if self.has_ctrl() {
+                        match key {
+                            Key::Letter('L') => {
+                                KERNEL_TERMINAL.lock().as_mut().unwrap().clear()
                             }
-                            return;
+                            _ => (),
                         }
+                        return;
+                    }
 
-                        let c = self.keymap.glyph(
-                            key,
-                            self.altgr,
-                            self.capslock,
-                            self.has_shift()
-                        );
-                        if let Some(c) = c {
-                            print!("{c}");
-                        }
-                    },
-                },
-            KeyEvent::Released(key) =>
-                match key {
-                    Key::LeftShift => self.lshift = false,
-                    Key::RightShift => self.rshift = false,
-                    Key::LeftCtrl => self.lctrl = false,
-                    Key::RightCtrl => self.rctrl = false,
-                    Key::Alt => self.alt = false,
-                    Key::AltGr => self.altgr = false,
-                    Key::LeftMeta => self.lmeta = false,
-                    Key::RightMeta => self.rmeta = false,
-                    _ => (),
-                },
+                    let c = self.keymap.glyph(
+                        key,
+                        self.altgr,
+                        self.capslock,
+                        self.has_shift(),
+                    );
+                    if let Some(c) = c {
+                        print!("{c}");
+                    }
+                }
+            },
+            KeyEvent::Released(key) => match key {
+                Key::LeftShift => self.lshift = false,
+                Key::RightShift => self.rshift = false,
+                Key::LeftCtrl => self.lctrl = false,
+                Key::RightCtrl => self.rctrl = false,
+                Key::Alt => self.alt = false,
+                Key::AltGr => self.altgr = false,
+                Key::LeftMeta => self.lmeta = false,
+                Key::RightMeta => self.rmeta = false,
+                _ => (),
+            },
             _ => (),
         }
     }

@@ -8,12 +8,12 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-use core::cmp::Ordering;
-use core::fmt::{Debug, Formatter, LowerHex};
-use core::ops::{Add, AddAssign, Sub};
 use crate::arch;
 use crate::arch::cpu::MachineState;
 use crate::panic::panic_at_state;
+use core::cmp::Ordering;
+use core::fmt::{Debug, Formatter, LowerHex};
+use core::ops::{Add, AddAssign, Sub};
 
 pub mod frame;
 pub mod kalloc;
@@ -121,9 +121,11 @@ pub enum AccessAttempt {
     Execute,
 }
 
-pub fn handle_pagefault(fault_addr: VAddr,
-                        access: AccessAttempt,
-                        machine_state: &MachineState) {
+pub fn handle_pagefault(
+    fault_addr: VAddr,
+    access: AccessAttempt,
+    machine_state: &MachineState,
+) {
     let op_str = match access {
         AccessAttempt::Read => "Invalid read",
         AccessAttempt::Write => "Invalid write",
@@ -142,8 +144,7 @@ pub fn handle_pagefault(fault_addr: VAddr,
     };
 
     panic_at_state(
-        format_args!("{} at {:?}: {}",
-                     op_str, fault_addr, reason),
+        format_args!("{} at {:?}: {}", op_str, fault_addr, reason),
         Some(machine_state),
         0,
     );

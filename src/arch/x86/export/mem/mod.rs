@@ -10,8 +10,8 @@
 
 use core::fmt::{self, Debug, Formatter};
 
-use crate::mem::{PagePermissions, get_lowmem_va_end, VAddr};
-use crate::arch::x86::mem::paging::{locate_page_entry, AnyEntry};
+use crate::arch::x86::mem::paging::{AnyEntry, locate_page_entry};
+use crate::mem::{PagePermissions, VAddr, get_lowmem_va_end};
 
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -87,7 +87,7 @@ pub fn page_permissions(vaddr: VAddr) -> PagePermissions {
             readable: false,
             writable: false,
             executable: false,
-        }
+        };
     }
     let entry = entry.unwrap();
 
@@ -105,6 +105,6 @@ pub fn page_permissions(vaddr: VAddr) -> PagePermissions {
             readable: pte.is_present(),
             writable: pte.is_present() && pte.is_writable(),
             executable: pte.is_present() && pte.is_executable(),
-        }
+        },
     }
 }

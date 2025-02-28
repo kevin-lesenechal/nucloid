@@ -24,7 +24,8 @@ fn build_x86(target: &str) {
             .file("src/arch/x86/isr_entry64.S");
     }
 
-    build.link_lib_modifier("+whole-archive")
+    build
+        .link_lib_modifier("+whole-archive")
         .compile("nucloid_c");
 }
 
@@ -48,8 +49,8 @@ fn add_c_flags(build: &mut cc::Build) {
 }
 
 fn set_compiler(build: &mut cc::Build) {
-    let target = std::env::var("TARGET")
-        .expect("Expected TARGET environment variable");
+    let target =
+        std::env::var("TARGET").expect("Expected TARGET environment variable");
 
     let compiler = match target.as_ref() {
         "x86_64-nucloid" => "x86_64-elf-gcc",

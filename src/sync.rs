@@ -8,11 +8,11 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{AtomicBool, Ordering};
-use core::cell::UnsafeCell;
 
-use crate::arch::sync::{push_critical_region, pop_critical_region};
+use crate::arch::sync::{pop_critical_region, push_critical_region};
 
 pub struct Spinlock<T> {
     lock: AtomicBool,
@@ -32,9 +32,16 @@ impl<T> Spinlock<T> {
 
     pub fn lock(&self) -> SpinlockGuard<T> {
         push_critical_region();
-        while self.lock.compare_exchange_weak(false, true,
-                                              Ordering::Acquire,
-                                              Ordering::Relaxed).is_err() {
+        while self
+            .lock
+            .compare_exchange_weak(
+                false,
+                true,
+                Ordering::Acquire,
+                Ordering::Relaxed,
+            )
+            .is_err()
+        {
             pop_critical_region();
             while self.is_locked() {
                 core::hint::spin_loop();

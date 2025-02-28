@@ -9,10 +9,10 @@
  ******************************************************************************/
 
 use alloc::vec::Vec;
-use core::char::REPLACEMENT_CHARACTER;
-use core::convert::TryInto;
 use binrw::BinRead;
 use binrw::io::{Cursor, Seek, SeekFrom};
+use core::char::REPLACEMENT_CHARACTER;
+use core::convert::TryInto;
 use hashbrown::HashMap;
 use thiserror_no_std::Error;
 
@@ -72,12 +72,16 @@ impl PxFont {
             let block = GlyphBlock::read(&mut reader)
                 .map_err(|e| PxFontError::InvalidGlyphBlockHeader(e))?;
             let is_rgba = block.rgba > 0;
-            let (start, end) = match (block.start.try_into(), block.end.try_into()) {
-                (Ok(start), Ok(end)) => (start, end),
-                _ => return Err(
-                    PxFontError::InvalidGlyphBlockRange(block.start, block.end)
-                ),
-            };
+            let (start, end) =
+                match (block.start.try_into(), block.end.try_into()) {
+                    (Ok(start), Ok(end)) => (start, end),
+                    _ => {
+                        return Err(PxFontError::InvalidGlyphBlockRange(
+                            block.start,
+                            block.end,
+                        ));
+                    }
+                };
 
             for c in start..=end {
                 let mut data = remaining(&reader);
@@ -85,8 +89,17 @@ impl PxFont {
                 data = &data[1..];
 
                 let glyph_size = match is_rgba {
-                    false => nr_cols as usize * header.width as usize * header.height as usize,
-                    true => nr_cols as usize * header.width as usize * header.height as usize * 4,
+                    false => {
+                        nr_cols as usize
+                            * header.width as usize
+                            * header.height as usize
+                    }
+                    true => {
+                        nr_cols as usize
+                            * header.width as usize
+                            * header.height as usize
+                            * 4
+                    }
                 };
 
                 if data.len() < glyph_size {
@@ -97,7 +110,9 @@ impl PxFont {
                     nr_cols,
                     is_rgba,
                 };
-                reader.seek(SeekFrom::Current(glyph_size as i64 + 1)).unwrap();
+                reader
+                    .seek(SeekFrom::Current(glyph_size as i64 + 1))
+                    .unwrap();
                 chars.insert(c, glyph);
             }
 

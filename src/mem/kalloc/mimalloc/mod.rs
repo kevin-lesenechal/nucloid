@@ -10,10 +10,10 @@
 
 mod heap;
 
-use core::ptr::NonNull;
 use crate::mem::kalloc::mimalloc::heap::Heap;
 use crate::sync::Spinlock;
 use crate::task::cpu::current_cpu_index;
+use core::ptr::NonNull;
 
 const SMALL_SIZE_MAX: usize = 1024;
 const SMALL_SIZE_BUCKET_INC: usize = 8;

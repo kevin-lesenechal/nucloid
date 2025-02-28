@@ -13,7 +13,9 @@ use x86::cpuid::CpuId;
 static mut CPUID: Option<CpuId> = None;
 
 pub unsafe fn init() {
-    CPUID = Some(CpuId::new());
+    unsafe {
+        CPUID = Some(CpuId::new());
+    }
 }
 
 pub fn get() -> &'static CpuId {

@@ -8,12 +8,12 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-pub mod init;
-pub mod driver;
-pub mod gdt;
-pub mod irq;
-pub(super) mod export;
-pub mod mem;
 pub mod cpuid;
+pub mod driver;
+pub(super) mod export;
+pub mod gdt;
+pub mod init;
+pub mod irq;
+pub mod mem;
 
 pub type Ioport = u16;

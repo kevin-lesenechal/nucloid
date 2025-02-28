@@ -25,16 +25,18 @@ impl Pic8259 {
     }
 
     pub unsafe fn init(&mut self, master_vec_base: u8, slave_vec_base: u8) {
-        outb(self.master_port,     0b0001_0001);
-        outb(self.slave_port,      0b0001_0001);
-        outb(self.master_port + 1, master_vec_base);
-        outb(self.slave_port + 1,  slave_vec_base);
-        outb(self.master_port + 1, 1 << 2); // Slave on IRQ 2
-        outb(self.slave_port + 1,  1 << 1); // Slave ID 1
-        outb(self.master_port + 1, 0b0000_0001);
-        outb(self.slave_port + 1,  0b0000_0001);
-        outb(self.master_port + 1, 0b0000_0000);
-        outb(self.slave_port + 1,  0b0000_0000);
+        unsafe {
+            outb(self.master_port, 0b0001_0001);
+            outb(self.slave_port, 0b0001_0001);
+            outb(self.master_port + 1, master_vec_base);
+            outb(self.slave_port + 1, slave_vec_base);
+            outb(self.master_port + 1, 1 << 2); // Slave on IRQ 2
+            outb(self.slave_port + 1, 1 << 1); // Slave ID 1
+            outb(self.master_port + 1, 0b0000_0001);
+            outb(self.slave_port + 1, 0b0000_0001);
+            outb(self.master_port + 1, 0b0000_0000);
+            outb(self.slave_port + 1, 0b0000_0000);
+        }
     }
 
     pub fn ack_irq(&mut self, irq: u32) {

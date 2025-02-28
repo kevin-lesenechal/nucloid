@@ -8,9 +8,9 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-pub mod vm;
 pub mod cpu;
 pub mod cpu_local;
+pub mod vm;
 
 use crate::arch::task::TaskMachineContext;
 

@@ -9,8 +9,8 @@
  ******************************************************************************/
 
 use alloc::string::ToString;
-use binrw::{BinRead, NullString};
 use binrw::io::Cursor;
+use binrw::{BinRead, NullString};
 use hashbrown::HashMap;
 
 use crate::driver::keyboard::{Deadkey, Key};
@@ -83,23 +83,27 @@ impl Keymap {
         for _ in 0..header.nr_mapping {
             let mapping = KeyMapping::read(&mut reader)
                 .map_err(|_| KeymapError::InvalidKeymapFile)?;
-            let key: Key = mapping.key_name.to_string().parse()
+            let key: Key = mapping
+                .key_name
+                .to_string()
+                .parse()
                 .map_err(|_| KeymapError::InvalidKeymapFile)?;
-            map.insert(key, CharMatrix([
-                mapping.matrix[0].try_into().ok(),
-                mapping.matrix[1].try_into().ok(),
-                mapping.matrix[2].try_into().ok(),
-                mapping.matrix[3].try_into().ok(),
-                mapping.matrix[4].try_into().ok(),
-                mapping.matrix[5].try_into().ok(),
-                mapping.matrix[6].try_into().ok(),
-                mapping.matrix[7].try_into().ok(),
-            ]));
+            map.insert(
+                key,
+                CharMatrix([
+                    mapping.matrix[0].try_into().ok(),
+                    mapping.matrix[1].try_into().ok(),
+                    mapping.matrix[2].try_into().ok(),
+                    mapping.matrix[3].try_into().ok(),
+                    mapping.matrix[4].try_into().ok(),
+                    mapping.matrix[5].try_into().ok(),
+                    mapping.matrix[6].try_into().ok(),
+                    mapping.matrix[7].try_into().ok(),
+                ]),
+            );
         }
 
-        Ok(Self {
-            map,
-        })
+        Ok(Self { map })
     }
 
     pub fn glyph(
@@ -109,7 +113,8 @@ impl Keymap {
         capslock: bool,
         shift: bool,
     ) -> Option<char> {
-        self.map.get(&key)
+        self.map
+            .get(&key)
             .and_then(|matrix| matrix.get(altgr, capslock, shift))
     }
 }
@@ -137,10 +142,9 @@ impl CharMatrix {
         capslock: bool,
         shift: bool,
     ) -> Option<char> {
-        let index =
-            if shift { 1 } else { 0 } << 0
-                | if capslock { 1 } else { 0 } << 1
-                | if altgr { 1 } else { 0 } << 2;
+        let index = if shift { 1 } else { 0 } << 0
+            | if capslock { 1 } else { 0 } << 1
+            | if altgr { 1 } else { 0 } << 2;
         self.0[index]
     }
 }

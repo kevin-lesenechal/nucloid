@@ -8,17 +8,20 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-use core::cell::RefCell;
-use core::mem::{MaybeUninit, size_of};
-use core::ptr::NonNull;
-use crate::arch::sync::{push_critical_region, pop_critical_region};
-use crate::mem::kalloc::mimalloc::{BlockHeader, NR_DIRECT_PAGES, PageHeader, SMALL_SIZE_BUCKET_INC, SMALL_SIZE_BUCKET_INC_SHIFT};
+use crate::arch::sync::{pop_critical_region, push_critical_region};
+use crate::mem::kalloc::mimalloc::{
+    BlockHeader, NR_DIRECT_PAGES, PageHeader, SMALL_SIZE_BUCKET_INC,
+    SMALL_SIZE_BUCKET_INC_SHIFT,
+};
 use crate::misc::{align_up, first_bit_pos};
 use crate::task::cpu::{CpuIndex, MAX_CPUS};
 use crate::task::cpu_local::CpuLocal;
+use core::cell::RefCell;
+use core::mem::{MaybeUninit, size_of};
+use core::ptr::NonNull;
 
-static HEAPS: CpuLocal<RefCell<Heap>>
-    = CpuLocal::new(Heap::new_dangling_array());
+static HEAPS: CpuLocal<RefCell<Heap>> =
+    CpuLocal::new(Heap::new_dangling_array());
 
 #[derive(Copy, Clone)]
 pub struct Heap {
@@ -83,9 +86,10 @@ impl Heap {
     }
 
     pub fn small_alloc(&mut self, size: usize) -> NonNull<BlockHeader> {
-        let bucket = (size + (SMALL_SIZE_BUCKET_INC - 1))
-            >> SMALL_SIZE_BUCKET_INC_SHIFT;
-        let mut page = unsafe { self.direct_pages[bucket].as_ref() }.borrow_mut();
+        let bucket =
+            (size + (SMALL_SIZE_BUCKET_INC - 1)) >> SMALL_SIZE_BUCKET_INC_SHIFT;
+        let mut page =
+            unsafe { self.direct_pages[bucket].as_ref() }.borrow_mut();
 
         if let Some(block) = page.free_list {
             let block = unsafe { block.as_ref() };
@@ -123,8 +127,8 @@ impl Heap {
             let wsize = wsize - 1;
             let bit_pos = first_bit_pos(wsize);
 
-            ((((bit_pos as usize) << 2)
-               | ((wsize >> (bit_pos - 2)) & 3)) - 3) as u8
+            ((((bit_pos as usize) << 2) | ((wsize >> (bit_pos - 2)) & 3)) - 3)
+                as u8
         }
     }
 }

@@ -8,12 +8,10 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
-use core::sync::atomic::Ordering;
 use crate::task::cpu::{CpuIndex, MAX_CPUS, NR_CPUS};
+use core::sync::atomic::Ordering;
 
-pub struct CpuLocal<T>(
-    [T; MAX_CPUS]
-);
+pub struct CpuLocal<T>([T; MAX_CPUS]);
 
 // SAFETY: it is guaranteed that as long as we hold an instance of
 // `CpuIndex`, we run on the associated CPU within a critical section,

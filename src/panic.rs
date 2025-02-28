@@ -15,10 +15,10 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use core::panic::PanicInfo;
 
 use crate::arch::cpu::MachineState;
-use crate::{arch, print, println};
 use crate::arch::logging::LOGGER_SERIAL;
 use crate::backtrace::Backtrace;
 use crate::driver::vga::VgaScreen;
+use crate::{arch, print, println};
 
 static PANIC_ENTERED: AtomicBool = AtomicBool::new(false);
 
@@ -30,9 +30,10 @@ pub fn panic_at_state(
     // Make sure there is only one thread panicking; if another thread panics,
     // we terminate it. This implies that the panic handler is non-reentrant
     // and, therefore, we must try our best not to trigger one in it.
-    if PANIC_ENTERED.compare_exchange(false, true,
-                                      Ordering::SeqCst, Ordering::SeqCst)
-        .is_err() {
+    if PANIC_ENTERED
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
         arch::cpu::perm_halt();
     }
 
@@ -86,7 +87,11 @@ fn print_panic_screen(
     writeln!(vga, "    src/arch/x86/start32.S:194  <0xc0108bdf + 0x121>");
 
     vga.set_attributes(0x1f);
-    write!(vga, "{:79}", "This was Nucloid v0.1.0, goodbye cruel world.");
+    write!(
+        vga,
+        "{:79}",
+        "This was Nucloid v0.1.0, goodbye cruel world."
+    );
 }
 
 #[allow(unused_must_use)]
@@ -135,17 +140,13 @@ fn print_terminal(
 fn panic_handler(panic_info: &PanicInfo) -> ! {
     let machine_state = MachineState::here();
 
-    if let Some(msg) = panic_info.message() {
-        panic_at_state(
-            format_args!("Rust: {} ({})", msg, panic_info.location().unwrap()),
-            Some(&machine_state),
-            2,
-        );
-    } else {
-        panic_at_state(
-            format_args!("Rust panic with no message"),
-            Some(&machine_state),
-            2,
-        );
-    }
+    panic_at_state(
+        format_args!(
+            "Rust: {} ({})",
+            panic_info.message(),
+            panic_info.location().unwrap()
+        ),
+        Some(&machine_state),
+        2,
+    );
 }

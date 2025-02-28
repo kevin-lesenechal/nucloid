@@ -8,6 +8,7 @@
  * any later version. See LICENSE file for more information.                  *
  ******************************************************************************/
 
+use core::mem::size_of;
 ///! Physical memory's frames management. Physical memory is divided into
 ///! continuous fixed-size units called *frames*. It is the most basic unit the
 ///! kernel uses to handle physical memory management and allocations.
@@ -15,15 +16,13 @@
 ///! This module contains the definition of a frame and the *frame allocator*
 ///! which manages a global array of frames mapping the entire physical address
 ///! space.
-
 use core::slice;
-use core::mem::size_of;
 
-use crate::sync::Spinlock;
-use crate::mem::{PAddr, get_lowmem_va_end, VAddr};
 use crate::arch::mem::{FRAME_SIZE, FRAME_SIZE_BITS};
 use crate::debug;
+use crate::mem::{PAddr, VAddr, get_lowmem_va_end};
 use crate::misc::align_up;
+use crate::sync::Spinlock;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Frame {
@@ -79,7 +78,8 @@ impl Default for Frame {
 
 //----------------------------------------------------------------------------//
 
-pub static FRAME_ALLOCATOR: Spinlock<Option<FrameAllocator>> = Spinlock::new(None);
+pub static FRAME_ALLOCATOR: Spinlock<Option<FrameAllocator>> =
+    Spinlock::new(None);
 
 pub struct FrameAllocator {
     frames: &'static mut [Frame],
@@ -98,10 +98,7 @@ impl FrameAllocator {
     ///
     /// The physical address of the allocated frame's first byte, None if no
     /// frame could be found that satisfies the request.
-    pub fn allocate(
-        &mut self,
-        nr_frames: usize,
-    ) -> Option<PAddr> {
+    pub fn allocate(&mut self, nr_frames: usize) -> Option<PAddr> {
         let mut nr_free = 0;
         let mut free_index = None;
 
@@ -119,10 +116,8 @@ impl FrameAllocator {
         }
 
         if let Some(free_index) = free_index {
-            for frame in self.frames
-                .iter_mut()
-                .skip(free_index)
-                .take(nr_frames) {
+            for frame in self.frames.iter_mut().skip(free_index).take(nr_frames)
+            {
                 frame.state = FrameState::AllocatedRAM;
             }
 
@@ -190,7 +185,9 @@ impl AllocationBuilder {
 
         if self.zero {
             unsafe {
-                paddr.into_vaddr().as_mut_ptr::<u8>()
+                paddr
+                    .into_vaddr()
+                    .as_mut_ptr::<u8>()
                     .write_bytes(0, self.nr_frames * 4096);
             }
         }
@@ -209,7 +206,9 @@ impl AllocationBuilder {
 
         if self.zero {
             unsafe {
-                vaddr.as_mut_ptr::<u8>().write_bytes(0, self.nr_frames * 4096);
+                vaddr
+                    .as_mut_ptr::<u8>()
+                    .write_bytes(0, self.nr_frames * 4096);
             }
         }
 
@@ -263,9 +262,7 @@ impl AllocatorBuilder {
         };
         frames.fill(Default::default());
 
-        Self {
-            frames,
-        }
+        Self { frames }
     }
 
     /// Declare some physical memory area as already allocated and in use for
@@ -317,14 +314,18 @@ impl AllocatorBuilder {
     /// Failure to do so will either hand already-allocated frames to other
     /// users, or allocate reserved memory areas for general purpose.
     pub unsafe fn build(mut self) -> FrameAllocator {
-        let frames_paddr = PAddr::from_lowmem_vaddr(VAddr::from(self.frames.as_ptr())).unwrap();
+        let frames_paddr =
+            PAddr::from_lowmem_vaddr(VAddr::from(self.frames.as_ptr()))
+                .unwrap();
         let frames_bsize = self.frames.len() * size_of::<Frame>();
 
         // Let's not forget to mark as used the RAM for the frame descriptors.
-        self.declare_allocated_ram(
-            frames_paddr,
-            align_up(frames_bsize as u64, 4096)
-        );
+        unsafe {
+            self.declare_allocated_ram(
+                frames_paddr,
+                align_up(frames_bsize as u64, 4096),
+            );
+        }
 
         FrameAllocator {
             frames: self.frames,
@@ -347,5 +348,4 @@ impl AllocatorBuilder {
 //----------------------------------------------------------------------------//
 
 #[cfg(test)]
-mod test {
-}
+mod test {}

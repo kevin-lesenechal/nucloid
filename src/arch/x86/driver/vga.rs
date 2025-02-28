@@ -14,17 +14,21 @@ use core::fmt;
 use core::slice;
 
 pub struct Vga<'a> {
-    mem:    &'a mut [u8],
-    width:  u8,
+    mem: &'a mut [u8],
+    width: u8,
     height: u8,
     curs_x: u8,
     curs_y: u8,
-    attr:   u8,
+    attr: u8,
 }
 
 impl<'a> Vga<'a> {
-    pub unsafe fn new(addr: *mut u8, size: usize,
-                      width: u8, height: u8) -> Self {
+    pub unsafe fn new(
+        addr: *mut u8,
+        size: usize,
+        width: u8,
+        height: u8,
+    ) -> Self {
         assert_eq!(size, width as usize * height as usize * 2);
         Self {
             mem: unsafe { slice::from_raw_parts_mut(addr, size) },
@@ -48,13 +52,13 @@ impl<'a> VgaScreen for Vga<'a> {
             b'\n' => {
                 self.curs_x = 0;
                 self.curs_y += 1;
-            },
+            }
             b'\t' => {
                 self.curs_x += 8 - (self.curs_x % 8);
-            },
+            }
             b'\r' => {
                 self.curs_x = 0;
-            },
+            }
             _ => {
                 let index = self.cursor_index();
                 self.mem[index] = c;
